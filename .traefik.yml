@@ -1,0 +1,15 @@
+displayName: GeoFilt
+type: middleware
+
+import: github.com/eterline/geo-filt
+summary: IP based client filter. Uses v2ray geoip.dat files.
+
+iconPath: ""
+bannerPath: ""
+
+testData:
+  GeoFile: "./geoip.dat"
+  Tags:
+    - "ru"
+  Defined:
+    - "10.192.0.0/24"
