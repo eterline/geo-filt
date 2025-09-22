@@ -13,13 +13,13 @@ import (
 	"path/filepath"
 	"strings"
 
-	"go4.org/netipx"
+	"github.com/eterline/geo-filt/pkg/netipuse"
 )
 
 type PoolMatcherIP struct {
 	name string
 	ctx  context.Context
-	pool *netipx.IPSet
+	pool *netipuse.IPSet
 }
 
 func (m *PoolMatcherIP) Provider() string {

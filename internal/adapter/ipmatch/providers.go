@@ -8,12 +8,13 @@ import (
 	"context"
 	"encoding/csv"
 	"errors"
+	"io"
 	"net/netip"
 	"os"
 	"strconv"
 	"strings"
 
-	"go4.org/netipx"
+	"github.com/eterline/geo-filt/pkg/netipuse"
 )
 
 type SubnetFileSelector map[int64]struct{}
@@ -30,18 +31,21 @@ func NewSubnetFileSelector(codesFile string, codes []string) (SubnetFileSelector
 	}
 	defer f.Close()
 
-	records, err := csv.NewReader(f).ReadAll()
-	if err != nil {
-		return nil, err
-	}
-
-	pool := map[int64]struct{}{}
-
 	for i, code := range codes {
 		codes[i] = strings.TrimSpace(strings.ToUpper(code))
 	}
 
-	for _, record := range records {
+	pool := map[int64]struct{}{}
+	r := csv.NewReader(f)
+	for {
+		record, err := r.Read()
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return nil, err
+		}
+
 		if len(record) < 5 {
 			continue
 		}
@@ -50,7 +54,6 @@ func NewSubnetFileSelector(codesFile string, codes []string) (SubnetFileSelector
 		if err != nil {
 			continue
 		}
-
 		for _, code := range codes {
 			if record[4] == code {
 				pool[id] = struct{}{}
@@ -62,8 +65,8 @@ func NewSubnetFileSelector(codesFile string, codes []string) (SubnetFileSelector
 	return pool, nil
 }
 
-func (sfs SubnetFileSelector) SelectSubnets(subnetsFile []string) (*netipx.IPSet, error) {
-	pool := &netipx.IPSetBuilder{}
+func (sfs SubnetFileSelector) SelectSubnets(subnetsFile []string) (*netipuse.IPSet, error) {
+	pool := &netipuse.IPSetBuilder{}
 	if len(subnetsFile) < 1 {
 		return pool.IPSet()
 	}
@@ -80,12 +83,16 @@ func (sfs SubnetFileSelector) SelectSubnets(subnetsFile []string) (*netipx.IPSet
 		}
 		defer f.Close()
 
-		records, err := csv.NewReader(f).ReadAll()
-		if err != nil {
-			return nil, err
-		}
+		r := csv.NewReader(f)
+		for {
+			record, err := r.Read()
+			if err != nil {
+				if err == io.EOF {
+					break
+				}
+				return nil, err
+			}
 
-		for _, record := range records {
 			if len(record) < 3 {
 				continue
 			}
@@ -133,7 +140,7 @@ func NewMatcherDefinedSubnets(ctx context.Context, subnets []string) (*PoolMatch
 		return nil, errors.New("subnets is nil")
 	}
 
-	pool := &netipx.IPSetBuilder{}
+	pool := &netipuse.IPSetBuilder{}
 
 	for _, s := range subnets {
 		if p, err := netip.ParsePrefix(s); err == nil {
