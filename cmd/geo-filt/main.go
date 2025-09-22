@@ -1,23 +1,14 @@
 package main
 
 import (
-	"context"
 	"fmt"
+	"net/netip"
 
 	"github.com/eterline/geo-filt/internal/adapter/ipmatch"
 )
 
 func main() {
-	mc, err := ipmatch.NewMatcherGeoDB(
-		context.Background(),
-		"./dataset/IPLocate-Country-GeoIPCompat-Locations-en.csv",
-		"./dataset/IPLocate-Country-GeoIPCompat-Blocks-IPv4.csv",
-		"ru",
-	)
+	mc := ipmatch.NewPrivateMatcher()
 
-	if err != nil {
-		panic(err)
-	}
-
-	fmt.Println(mc.MustMatchParsed("10.192.0.1"))
+	fmt.Println(mc.Match(netip.MustParseAddr("10.192.0.100")))
 }

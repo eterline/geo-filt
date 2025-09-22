@@ -10,8 +10,10 @@ bannerPath: ""
 testData:
   enabled: true
   allowPrivate: true
-  geoFile: "/etc/traefik/plugins/github.com/eterline/geo-filt/IPLocate-Country-GeoIPCompat-Blocks-IPv4.csv"
-  codeFile: "/etc/traefik/plugins/github.com/eterline/geo-filt/IPLocate-Country-GeoIPCompat-Locations-en.csv"
+  headerBearer: false
+  geoFile: "/etc/traefik/plugins/github.com/eterline/geo-filt/subnets_ipv4.csv"
+  geoFile6: "/etc/traefik/plugins/github.com/eterline/geo-filt/subnets_ipv6.csv"
+  codeFile: "/etc/traefik/plugins/github.com/eterline/geo-filt/locations.csv"
   tags:
     - "ru"
   defined:

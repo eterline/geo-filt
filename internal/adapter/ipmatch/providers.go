@@ -16,8 +16,8 @@ import (
 	"strings"
 )
 
-func selectCodeIDs(subnetsFile string, codes []string) (map[int64]struct{}, error) {
-	file, err := resolvePath(subnetsFile, true)
+func selectCodeIDs(codesFile string, codes []string) (map[int64]struct{}, error) {
+	file, err := resolvePath(codesFile, true)
 	if err != nil {
 		return nil, err
 	}
@@ -104,7 +104,7 @@ func matchPrefixesById(subnetsFile string, idPool map[int64]struct{}) ([]netip.P
 	return pool, nil
 }
 
-func NewMatcherGeoDB(ctx context.Context, countryFile, subnetsFile string, codes ...string) (*PoolMatcherIP, error) {
+func NewMatcherGeoDB(ctx context.Context, countryFile, subnetsFile string, codes []string) (*PoolMatcherIP, error) {
 	idPool, err := selectCodeIDs(countryFile, codes)
 	if err != nil {
 		return nil, err

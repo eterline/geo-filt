@@ -8,13 +8,11 @@ import (
 	"context"
 	"errors"
 	"net/netip"
-	"sync"
 )
 
 type PoolMatcherIP struct {
 	name string
 	ctx  context.Context
-	mu   sync.Mutex
 	pool []netip.Prefix
 }
 
@@ -23,9 +21,6 @@ func (m *PoolMatcherIP) Provider() string {
 }
 
 func (m *PoolMatcherIP) Match(ip netip.Addr) bool {
-
-	m.mu.Lock()
-	defer m.mu.Unlock()
 
 	for _, p := range m.pool {
 		if m.ctx.Err() != nil {
