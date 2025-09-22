@@ -7,13 +7,19 @@ package ipmatch
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/netip"
+	"os"
+	"path/filepath"
+	"strings"
+
+	"go4.org/netipx"
 )
 
 type PoolMatcherIP struct {
 	name string
 	ctx  context.Context
-	pool []netip.Prefix
+	pool *netipx.IPSet
 }
 
 func (m *PoolMatcherIP) Provider() string {
@@ -21,18 +27,10 @@ func (m *PoolMatcherIP) Provider() string {
 }
 
 func (m *PoolMatcherIP) Match(ip netip.Addr) bool {
-
-	for _, p := range m.pool {
-		if m.ctx.Err() != nil {
-			return false
-		}
-
-		if p.Contains(ip) {
-			return true
-		}
+	if m.ctx.Err() != nil {
+		return false
 	}
-
-	return false
+	return m.pool.Contains(ip)
 }
 
 func (m *PoolMatcherIP) MatchParsed(s string) (bool, error) {
@@ -49,4 +47,46 @@ func (m *PoolMatcherIP) MustMatchParsed(s string) bool {
 		panic(err)
 	}
 	return ok
+}
+
+func resolvePath(input string, mustExist bool) (string, error) {
+	if input == "" {
+		return "", errors.New("empty path")
+	}
+
+	if strings.HasPrefix(input, "~") {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return "", fmt.Errorf("cannot determine home dir: %w", err)
+		}
+
+		if input == "~" {
+			input = home
+		} else if strings.HasPrefix(input, "~/") || strings.HasPrefix(input, `~\`) {
+			input = filepath.Join(home, input[2:])
+		} else {
+			return "", fmt.Errorf("unsupported ~user expansion: %q", input)
+		}
+	}
+
+	abs, err := filepath.Abs(input)
+	if err != nil {
+		return "", fmt.Errorf("cannot make absolute path: %w", err)
+	}
+
+	resolved, err := filepath.EvalSymlinks(abs)
+	if err == nil {
+		abs = resolved
+	}
+
+	if mustExist {
+		if _, err := os.Stat(abs); err != nil {
+			if os.IsNotExist(err) {
+				return "", fmt.Errorf("path does not exist: %s", abs)
+			}
+			return "", fmt.Errorf("stat error for %s: %w", abs, err)
+		}
+	}
+
+	return abs, nil
 }

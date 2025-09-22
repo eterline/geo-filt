@@ -8,15 +8,17 @@ import (
 	"context"
 	"encoding/csv"
 	"errors"
-	"fmt"
 	"net/netip"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
+
+	"go4.org/netipx"
 )
 
-func selectCodeIDs(codesFile string, codes []string) (map[int64]struct{}, error) {
+type SubnetFileSelector map[int64]struct{}
+
+func NewSubnetFileSelector(codesFile string, codes []string) (SubnetFileSelector, error) {
 	file, err := resolvePath(codesFile, true)
 	if err != nil {
 		return nil, err
@@ -60,57 +62,59 @@ func selectCodeIDs(codesFile string, codes []string) (map[int64]struct{}, error)
 	return pool, nil
 }
 
-func matchPrefixesById(subnetsFile string, idPool map[int64]struct{}) ([]netip.Prefix, error) {
-	pool := []netip.Prefix{}
-	if idPool == nil {
-		return pool, nil
+func (sfs SubnetFileSelector) SelectSubnets(subnetsFile []string) (*netipx.IPSet, error) {
+	pool := &netipx.IPSetBuilder{}
+	if len(subnetsFile) < 1 {
+		return pool.IPSet()
 	}
 
-	file, err := resolvePath(subnetsFile, true)
-	if err != nil {
-		return nil, err
-	}
-
-	f, err := os.Open(file)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-
-	records, err := csv.NewReader(f).ReadAll()
-	if err != nil {
-		return nil, err
-	}
-
-	for _, record := range records {
-		if len(record) < 3 {
-			continue
-		}
-
-		id, err := strconv.ParseInt(record[2], 10, 64)
+	for _, file := range subnetsFile {
+		file, err := resolvePath(file, true)
 		if err != nil {
-			continue
+			return nil, err
 		}
 
-		if _, ok := idPool[id]; ok {
-			pf, err := netip.ParsePrefix(record[0])
+		f, err := os.Open(file)
+		if err != nil {
+			return nil, err
+		}
+		defer f.Close()
+
+		records, err := csv.NewReader(f).ReadAll()
+		if err != nil {
+			return nil, err
+		}
+
+		for _, record := range records {
+			if len(record) < 3 {
+				continue
+			}
+
+			id, err := strconv.ParseInt(record[2], 10, 64)
 			if err != nil {
 				continue
 			}
-			pool = append(pool, pf)
+
+			if _, ok := sfs[id]; ok {
+				pf, err := netip.ParsePrefix(record[0])
+				if err != nil {
+					continue
+				}
+				pool.AddPrefix(pf)
+			}
 		}
 	}
 
-	return pool, nil
+	return pool.IPSet()
 }
 
-func NewMatcherGeoDB(ctx context.Context, countryFile, subnetsFile string, codes []string) (*PoolMatcherIP, error) {
-	idPool, err := selectCodeIDs(countryFile, codes)
+func NewMatcherGeoDB(ctx context.Context, countryFile string, subnetsFile []string, codes []string) (*PoolMatcherIP, error) {
+	sl, err := NewSubnetFileSelector(countryFile, codes)
 	if err != nil {
 		return nil, err
 	}
 
-	pool, err := matchPrefixesById(subnetsFile, idPool)
+	pool, err := sl.SelectSubnets(subnetsFile)
 	if err != nil {
 		return nil, err
 	}
@@ -129,11 +133,11 @@ func NewMatcherDefinedSubnets(ctx context.Context, subnets []string) (*PoolMatch
 		return nil, errors.New("subnets is nil")
 	}
 
-	pool := make([]netip.Prefix, 0, len(subnets))
+	pool := &netipx.IPSetBuilder{}
 
 	for _, s := range subnets {
 		if p, err := netip.ParsePrefix(s); err == nil {
-			pool = append(pool, p)
+			pool.AddPrefix(p)
 			continue
 		}
 
@@ -144,60 +148,23 @@ func NewMatcherDefinedSubnets(ctx context.Context, subnets []string) (*PoolMatch
 			} else {
 				p = netip.PrefixFrom(ip, 128)
 			}
-			pool = append(pool, p)
+			pool.AddPrefix(p)
 			continue
 		}
+	}
+
+	set, err := pool.IPSet()
+	if err != nil {
+		return nil, err
 	}
 
 	self := &PoolMatcherIP{
 		name: "defined",
 		ctx:  ctx,
-		pool: pool,
+		pool: set,
 	}
 
 	return self, nil
-}
-
-func resolvePath(input string, mustExist bool) (string, error) {
-	if input == "" {
-		return "", errors.New("empty path")
-	}
-
-	if strings.HasPrefix(input, "~") {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return "", fmt.Errorf("cannot determine home dir: %w", err)
-		}
-
-		if input == "~" {
-			input = home
-		} else if strings.HasPrefix(input, "~/") || strings.HasPrefix(input, `~\`) {
-			input = filepath.Join(home, input[2:])
-		} else {
-			return "", fmt.Errorf("unsupported ~user expansion: %q", input)
-		}
-	}
-
-	abs, err := filepath.Abs(input)
-	if err != nil {
-		return "", fmt.Errorf("cannot make absolute path: %w", err)
-	}
-
-	resolved, err := filepath.EvalSymlinks(abs)
-	if err == nil {
-		abs = resolved
-	}
-
-	if mustExist {
-		if _, err := os.Stat(abs); err != nil {
-			if os.IsNotExist(err) {
-				return "", fmt.Errorf("path does not exist: %s", abs)
-			}
-			return "", fmt.Errorf("stat error for %s: %w", abs, err)
-		}
-	}
-
-	return abs, nil
 }
 
 /*

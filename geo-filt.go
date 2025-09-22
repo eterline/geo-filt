@@ -109,22 +109,19 @@ func New(ctx context.Context, next http.Handler, config *Config, name string) (h
 	queue = append(queue, mch)
 
 	v4, v6 := config.geoConfExists()
-
+	subnetsFile := []string{}
 	if v4 {
-		mch, err := ipmatch.NewMatcherGeoDB(ctx, config.CodeFile, config.GeoFile, config.Tags)
-		if err != nil {
-			return nil, err
-		}
-		queue = append(queue, mch)
+		subnetsFile = append(subnetsFile, config.GeoFile)
+	}
+	if v6 {
+		subnetsFile = append(subnetsFile, config.GeoFile6)
 	}
 
-	if v6 {
-		mch, err := ipmatch.NewMatcherGeoDB(ctx, config.CodeFile, config.GeoFile6, config.Tags)
-		if err != nil {
-			return nil, err
-		}
-		queue = append(queue, mch)
+	mch, err = ipmatch.NewMatcherGeoDB(ctx, config.CodeFile, subnetsFile, config.Tags)
+	if err != nil {
+		return nil, err
 	}
+	queue = append(queue, mch)
 
 	filter, err := filter.NewIpFilterService(queue)
 	if err != nil {
