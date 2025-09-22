@@ -200,6 +200,11 @@ func resolvePath(input string, mustExist bool) (string, error) {
 	return abs, nil
 }
 
+/*
+PrivateMatcher - matcher for private network IPs
+
+	as RFC 1918 (IPv4 addresses), RFC 4193 (IPv6 addresses) and loopback IPs
+*/
 type PrivateMatcher struct{}
 
 func NewPrivateMatcher() *PrivateMatcher {
@@ -207,7 +212,7 @@ func NewPrivateMatcher() *PrivateMatcher {
 }
 
 func (m *PrivateMatcher) Match(ip netip.Addr) bool {
-	return ip.IsPrivate() || ip.IsLoopback()
+	return ip.IsLoopback() || ip.IsPrivate()
 
 }
 
