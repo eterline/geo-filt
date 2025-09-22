@@ -8,9 +8,10 @@ iconPath: ""
 bannerPath: ""
 
 testData:
-  GeoFile: "./geoip.dat"
-  Tags:
+  enabled: true
+  geoFile: "/etc/traefik/plugins/github.com/eterline/geo-filt/geoip.dat"
+  tags:
     - "ru"
-  Defined:
+  defined:
     - "10.192.0.0/24"
   allowPrivate: true

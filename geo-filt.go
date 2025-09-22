@@ -20,10 +20,11 @@ type AllowService interface {
 }
 
 type Config struct {
-	GeoFile      string   `json:"geofile,omitempty"`
-	Tags         []string `json:"tags,omitempty"`
-	Defined      []string `json:"defined,omitempty"`
-	AllowPrivate bool     `json:"allowPrivate,omitempty"`
+	Enabled      bool     `json:"enabled,omitempty" yaml:"enabled,omitempty"`
+	AllowPrivate bool     `json:"allowPrivate,omitempty" yaml:"allowPrivate,omitempty"`
+	GeoFile      string   `json:"geoFile,omitempty" yaml:"geoFile,omitempty"`
+	Tags         []string `json:"tags,omitempty" yaml:"tags,omitempty"`
+	Defined      []string `json:"defined,omitempty" yaml:"defined,omitempty"`
 }
 
 func CreateConfig() *Config {
@@ -34,12 +35,24 @@ func CreateConfig() *Config {
 }
 
 type GeoFiltPlugin struct {
-	name   string
-	next   http.Handler
-	filter AllowService
+	name    string
+	enabled bool
+	next    http.Handler
+	filter  AllowService
 }
 
 func New(ctx context.Context, next http.Handler, config *Config, name string) (http.Handler, error) {
+
+	plugin := &GeoFiltPlugin{
+		name:    name,
+		next:    next,
+		enabled: config.Enabled,
+	}
+
+	if !config.Enabled {
+		return plugin, nil
+	}
+
 	matchers := []filter.MatchProvider{}
 
 	mch, err := ipmatch.NewMatcherDefinedSubnets(ctx, config.Defined)
@@ -52,19 +65,21 @@ func New(ctx context.Context, next http.Handler, config *Config, name string) (h
 		matchers = append(matchers, ipmatch.NewPrivateMatcher())
 	}
 
-	s, err := filter.NewIpFilterService(matchers)
+	filter, err := filter.NewIpFilterService(matchers)
 	if err != nil {
 		return nil, err
 	}
 
-	return &GeoFiltPlugin{
-		name:   name,
-		next:   next,
-		filter: s,
-	}, nil
+	plugin.filter = filter
+	return plugin, nil
 }
 
 func (a *GeoFiltPlugin) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+
+	if !a.enabled {
+		a.next.ServeHTTP(rw, req)
+		return
+	}
 
 	sc := ipscraper.NewIpScraper(
 		req,
