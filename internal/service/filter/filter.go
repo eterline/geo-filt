@@ -29,5 +29,10 @@ func NewIpFilterService(q []MatchProvider) (*IpFilterService, error) {
 }
 
 func (ifs *IpFilterService) IsAllowed(ip net.IP) bool {
-	return true
+	for _, inst := range ifs.provideQueue {
+		if inst.Match(ip) {
+			return true
+		}
+	}
+	return false
 }

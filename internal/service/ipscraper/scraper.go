@@ -10,12 +10,14 @@ import (
 )
 
 type IpScraper struct {
-	req *http.Request
+	headerQueue []string
+	req         *http.Request
 }
 
-func NewIpScraper(r *http.Request) *IpScraper {
+func NewIpScraper(r *http.Request, h ...string) *IpScraper {
 	return &IpScraper{
-		req: r,
+		headerQueue: h,
+		req:         r,
 	}
 }
 
@@ -29,24 +31,13 @@ func (is *IpScraper) Scrape() (net.IP, bool) {
 }
 
 func (is *IpScraper) headers() (net.IP, bool) {
-	if h := is.req.Header.Get("X-Forwarded-For"); h != "" {
-		if ip := net.ParseIP(h); ip != nil {
-			return ip, true
+	for _, wantedHeader := range is.headerQueue {
+		if h := is.req.Header.Get(wantedHeader); h != "" {
+			if ip := net.ParseIP(h); ip != nil {
+				return ip, true
+			}
 		}
 	}
-
-	if h := is.req.Header.Get("True-Client-IP"); h != "" {
-		if ip := net.ParseIP(h); ip != nil {
-			return ip, true
-		}
-	}
-
-	if h := is.req.Header.Get("X-Real-IP"); h != "" {
-		if ip := net.ParseIP(h); ip != nil {
-			return ip, true
-		}
-	}
-
 	return nil, false
 }
 

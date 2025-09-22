@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/http"
 
+	"github.com/eterline/geo-filt/internal/adapter/ipmatch"
 	"github.com/eterline/geo-filt/internal/service/filter"
 	"github.com/eterline/geo-filt/internal/service/ipscraper"
 )
@@ -38,8 +39,23 @@ type GeoFiltPlugin struct {
 }
 
 func New(ctx context.Context, next http.Handler, config *Config, name string) (http.Handler, error) {
+	matchers := []filter.MatchProvider{}
 
-	s, err := filter.NewIpFilterServiceMock()
+	mch, err := ipmatch.NewMatcherDefinedSubnets(ctx, config.Defined)
+	if err != nil {
+		return nil, err
+	}
+	matchers = append(matchers, mch)
+
+	for _, tag := range config.Tags {
+		m, err := ipmatch.NewMatcherGeofileV2ray(ctx, config.GeoFile, tag)
+		if err != nil {
+			return nil, err
+		}
+		matchers = append(matchers, m)
+	}
+
+	s, err := filter.NewIpFilterService(matchers)
 	if err != nil {
 		return nil, err
 	}
@@ -53,7 +69,12 @@ func New(ctx context.Context, next http.Handler, config *Config, name string) (h
 
 func (a *GeoFiltPlugin) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 
-	sc := ipscraper.NewIpScraper(req)
+	sc := ipscraper.NewIpScraper(
+		req,
+		"X-Forwarded-For",
+		"True-Client-IP",
+		"X-Real-IP",
+	)
 
 	if ip, ok := sc.Scrape(); ok {
 		if a.filter.IsAllowed(ip) {

@@ -5,6 +5,7 @@
 package ipmatch
 
 import (
+	"context"
 	"errors"
 	"net"
 	"net/netip"
@@ -13,6 +14,7 @@ import (
 
 type PoolMatcherIP struct {
 	name string
+	ctx  context.Context
 	mu   sync.Mutex
 	pool []netip.Prefix
 }
@@ -34,6 +36,10 @@ func (m *PoolMatcherIP) Match(ip net.IP) bool {
 		defer m.mu.Unlock()
 
 		for _, p := range m.pool {
+			if m.ctx.Err() != nil {
+				return false
+			}
+
 			if p.Contains(addr) {
 				return true
 			}

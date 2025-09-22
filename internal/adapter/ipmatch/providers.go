@@ -5,6 +5,7 @@
 package ipmatch
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/netip"
@@ -36,7 +37,7 @@ func convertToNetip(cidrs []*router.CIDR) ([]netip.Prefix, error) {
 	return pool, nil
 }
 
-func NewMatcherGeofileV2ray(filename, country string) (*PoolMatcherIP, error) {
+func NewMatcherGeofileV2ray(ctx context.Context, filename, country string) (*PoolMatcherIP, error) {
 	filename, err := ResolvePath(filename, false)
 	if err != nil {
 		return nil, err
@@ -56,13 +57,14 @@ func NewMatcherGeofileV2ray(filename, country string) (*PoolMatcherIP, error) {
 
 	self := &PoolMatcherIP{
 		name: "v2ray_geofile",
+		ctx:  ctx,
 		pool: pool,
 	}
 
 	return self, nil
 }
 
-func NewMatcherDefinedSubnets(subnets []string) (*PoolMatcherIP, error) {
+func NewMatcherDefinedSubnets(ctx context.Context, subnets []string) (*PoolMatcherIP, error) {
 	if subnets == nil {
 		return nil, errors.New("subnets is nil")
 	}
@@ -89,6 +91,7 @@ func NewMatcherDefinedSubnets(subnets []string) (*PoolMatcherIP, error) {
 
 	self := &PoolMatcherIP{
 		name: "defined",
+		ctx:  ctx,
 		pool: pool,
 	}
 
