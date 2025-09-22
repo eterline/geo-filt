@@ -47,14 +47,6 @@ func New(ctx context.Context, next http.Handler, config *Config, name string) (h
 	}
 	matchers = append(matchers, mch)
 
-	for _, tag := range config.Tags {
-		m, err := ipmatch.NewMatcherGeofileV2ray(ctx, config.GeoFile, tag)
-		if err != nil {
-			return nil, err
-		}
-		matchers = append(matchers, m)
-	}
-
 	s, err := filter.NewIpFilterService(matchers)
 	if err != nil {
 		return nil, err
