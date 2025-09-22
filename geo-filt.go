@@ -32,8 +32,7 @@ type Config struct {
 	AllowPrivate bool     `json:"allowPrivate,omitempty" yaml:"allowPrivate,omitempty"`
 	HeaderBearer bool     `json:"headerBearer,omitempty" yaml:"headerBearer,omitempty"`
 	CodeFile     string   `json:"codeFile,omitempty" yaml:"codeFile,omitempty"`
-	GeoFile      string   `json:"geoFile,omitempty" yaml:"geoFile,omitempty"`
-	GeoFile6     string   `json:"geoFile6,omitempty" yaml:"geoFile6,omitempty"`
+	GeoFile      []string `json:"geoFile,omitempty" yaml:"geoFile,omitempty"`
 	Tags         []string `json:"tags,omitempty" yaml:"tags,omitempty"`
 	Defined      []string `json:"defined,omitempty" yaml:"defined,omitempty"`
 }
@@ -44,8 +43,7 @@ func CreateConfig() *Config {
 		AllowPrivate: false,
 		HeaderBearer: false,
 		CodeFile:     "",
-		GeoFile:      "",
-		GeoFile6:     "",
+		GeoFile:      []string{},
 		Tags:         []string{},
 		Defined:      []string{},
 	}
@@ -56,11 +54,8 @@ func CreateConfig() *Config {
 
 okV4 - IPv4 file exists. okV6 - IPv6 file exists.
 */
-func (c Config) geoConfExists() (okV4, okV6 bool) {
-	if len(c.Tags) > 0 {
-		return (c.GeoFile != ""), (c.GeoFile6 != "")
-	}
-	return false, false
+func (c Config) geoConfExists() bool {
+	return (len(c.Tags) > 0) && (len(c.GeoFile) > 0)
 }
 
 // ===========================
@@ -75,24 +70,21 @@ type GeoFiltPlugin struct {
 
 func New(ctx context.Context, next http.Handler, config *Config, name string) (http.Handler, error) {
 
-	extractor := ipscraper.NewIpExtractor(config.HeaderBearer)
 	plugin := &GeoFiltPlugin{
-		name:      name,
-		next:      next,
-		enabled:   config.Enabled,
-		ipExtract: extractor,
+		name:    name,
+		next:    next,
+		enabled: config.Enabled,
 	}
 
 	// if disabled, plugin will pass request in any case
 	if !config.Enabled {
-		fmt.Fprint(os.Stdout, "geo-filt - disabled. Skip configuration\n")
+		os.Stdout.WriteString("geo-filt - disabled. Skip configuration")
 		return plugin, nil
 	}
 
 	// init match queue
 	queue := []filter.MatchProvider{}
-
-	fmt.Fprint(os.Stdout, "geo-filt - starting init configuration\n")
+	os.Stdout.WriteString("geo-filt - starting init configuration")
 
 	// default allow for private network IPs
 	// as RFC 1918 (IPv4 addresses) and RFC 4193 (IPv6 addresses)
@@ -108,32 +100,29 @@ func New(ctx context.Context, next http.Handler, config *Config, name string) (h
 	}
 	queue = append(queue, mch)
 
-	v4, v6 := config.geoConfExists()
-	subnetsFile := []string{}
-	if v4 {
-		subnetsFile = append(subnetsFile, config.GeoFile)
-	}
-	if v6 {
-		subnetsFile = append(subnetsFile, config.GeoFile6)
+	if config.geoConfExists() {
+		mch, err = ipmatch.NewMatcherGeoDB(ctx, config.CodeFile, config.GeoFile, config.Tags)
+		if err != nil {
+			return nil, err
+		}
+		queue = append(queue, mch)
 	}
 
-	mch, err = ipmatch.NewMatcherGeoDB(ctx, config.CodeFile, subnetsFile, config.Tags)
+	fl, err := filter.NewIpFilterService(queue)
 	if err != nil {
 		return nil, err
-	}
-	queue = append(queue, mch)
-
-	filter, err := filter.NewIpFilterService(queue)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, matcher := range queue {
-		fmt.Fprintf(os.Stdout, "geo-filt - include '%s' matcher\n", matcher.Provider())
 	}
 
 	// set filter service to plugin
-	plugin.filter = filter
+	plugin.filter = fl
+	// set extracting IP service to plugin
+	plugin.ipExtract = ipscraper.NewIpExtractor(config.HeaderBearer)
+
+	for _, matcher := range queue {
+		msg := fmt.Sprintf("geo-filt - include '%s' matcher", matcher.Provider())
+		os.Stdout.WriteString(msg)
+	}
+
 	return plugin, nil
 }
 

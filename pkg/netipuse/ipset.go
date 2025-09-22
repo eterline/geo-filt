@@ -12,7 +12,7 @@ import (
 	"strings"
 )
 
-// IPSetBuilder builds an immutable IPSet.
+// PoolIPBuilder builds an immutable PoolIP.
 //
 // The zero value is a valid value representing a set of no IPs.
 //
@@ -21,14 +21,14 @@ import (
 // general Adds should be called first. Input ranges may overlap in
 // any way.
 //
-// Most IPSetBuilder methods do not return errors.
-// Instead, errors are accumulated and reported by IPSetBuilder.IPSet.
-type IPSetBuilder struct {
+// Most PoolIPBuilder methods do not return errors.
+// Instead, errors are accumulated and reported by PoolIPBuilder.PoolIP.
+type PoolIPBuilder struct {
 	// in are the ranges in the set.
-	in []IPRange
+	in []PoolRange
 
 	// out are the ranges to be removed from 'in'.
-	out []IPRange
+	out []PoolRange
 
 	// errs are errors accumulated during construction.
 	errs multiErr
@@ -36,16 +36,16 @@ type IPSetBuilder struct {
 
 // normalize normalizes s: s.in becomes the minimal sorted list of
 // ranges required to describe s, and s.out becomes empty.
-func (s *IPSetBuilder) normalize() {
+func (s *PoolIPBuilder) normalize() {
 	const debug = false
 	if debug {
 		debugf("ranges start in=%v out=%v", s.in, s.out)
 	}
-	in, ok := mergeIPRanges(s.in)
+	in, ok := mergePoolRanges(s.in)
 	if !ok {
 		return
 	}
-	out, ok := mergeIPRanges(s.out)
+	out, ok := mergePoolRanges(s.out)
 	if !ok {
 		return
 	}
@@ -57,7 +57,7 @@ func (s *IPSetBuilder) normalize() {
 	// overlaps within each other. We can run a merge of the two lists
 	// in one pass.
 
-	min := make([]IPRange, 0, len(in))
+	min := make([]PoolRange, 0, len(in))
 	for len(in) > 0 && len(out) > 0 {
 		rin, rout := in[0], out[0]
 		if debug {
@@ -66,9 +66,9 @@ func (s *IPSetBuilder) normalize() {
 
 		switch {
 		case !rout.IsValid() || !rin.IsValid():
-			// mergeIPRanges should have prevented invalid ranges from
+			// mergePoolRanges should have prevented invalid ranges from
 			// sneaking in.
-			panic("invalid IPRanges during Ranges merge")
+			panic("invalid PoolRanges during Ranges merge")
 		case rout.entirelyBefore(rin):
 			// "out" is entirely before "in".
 			//
@@ -107,7 +107,7 @@ func (s *IPSetBuilder) normalize() {
 			// f-------------t
 			//    f------t
 			//       out
-			min = append(min, IPRange{from: rin.from, to: AddrPrior(rout.from)})
+			min = append(min, PoolRange{from: rin.from, to: AddrPrior(rout.from)})
 			// Adjust in[0], not ir, because we want to consider the
 			// mutated range on the next iteration.
 			in[0].from = rout.to.Next()
@@ -137,7 +137,7 @@ func (s *IPSetBuilder) normalize() {
 			//        f------t
 			//    f------t
 			//       in
-			min = append(min, IPRange{from: rin.from, to: AddrPrior(rout.from)})
+			min = append(min, PoolRange{from: rin.from, to: AddrPrior(rout.from)})
 			in = in[1:]
 			if debug {
 				debugf("merge out cuts end of in; append shortened in")
@@ -162,17 +162,17 @@ func (s *IPSetBuilder) normalize() {
 }
 
 // Clone returns a copy of s that shares no memory with s.
-func (s *IPSetBuilder) Clone() *IPSetBuilder {
-	return &IPSetBuilder{
-		in:  append([]IPRange(nil), s.in...),
-		out: append([]IPRange(nil), s.out...),
+func (s *PoolIPBuilder) Clone() *PoolIPBuilder {
+	return &PoolIPBuilder{
+		in:  append([]PoolRange(nil), s.in...),
+		out: append([]PoolRange(nil), s.out...),
 	}
 }
 
-func (s *IPSetBuilder) addError(msg string, args ...interface{}) {
+func (s *PoolIPBuilder) addError(msg string, args ...interface{}) {
 	se := new(stacktraceErr)
-	// Skip three frames: runtime.Callers, addError, and the IPSetBuilder
-	// method that called addError (such as IPSetBuilder.Add).
+	// Skip three frames: runtime.Callers, addError, and the PoolIPBuilder
+	// method that called addError (such as PoolIPBuilder.Add).
 	// The resulting stack trace ends at the line in the user's
 	// code where they called into netaddr.
 	n := runtime.Callers(3, se.pcs[:])
@@ -182,16 +182,16 @@ func (s *IPSetBuilder) addError(msg string, args ...interface{}) {
 }
 
 // Add adds ip to s.
-func (s *IPSetBuilder) Add(ip netip.Addr) {
+func (s *PoolIPBuilder) Add(ip netip.Addr) {
 	if !ip.IsValid() {
 		s.addError("Add(IP{})")
 		return
 	}
-	s.AddRange(IPRangeFrom(ip, ip))
+	s.AddRange(PoolRangeFrom(ip, ip))
 }
 
 // AddPrefix adds all IPs in p to s.
-func (s *IPSetBuilder) AddPrefix(p netip.Prefix) {
+func (s *PoolIPBuilder) AddPrefix(p netip.Prefix) {
 	if r := RangeOfPrefix(p); r.IsValid() {
 		s.AddRange(r)
 	} else {
@@ -201,7 +201,7 @@ func (s *IPSetBuilder) AddPrefix(p netip.Prefix) {
 
 // AddRange adds r to s.
 // If r is not Valid, AddRange does nothing.
-func (s *IPSetBuilder) AddRange(r IPRange) {
+func (s *PoolIPBuilder) AddRange(r PoolRange) {
 	if !r.IsValid() {
 		s.addError("AddRange(%v-%v)", r.From(), r.To())
 		return
@@ -215,7 +215,7 @@ func (s *IPSetBuilder) AddRange(r IPRange) {
 }
 
 // AddSet adds all IPs in b to s.
-func (s *IPSetBuilder) AddSet(b *IPSet) {
+func (s *PoolIPBuilder) AddSet(b *PoolIP) {
 	if b == nil {
 		return
 	}
@@ -225,16 +225,16 @@ func (s *IPSetBuilder) AddSet(b *IPSet) {
 }
 
 // Remove removes ip from s.
-func (s *IPSetBuilder) Remove(ip netip.Addr) {
+func (s *PoolIPBuilder) Remove(ip netip.Addr) {
 	if !ip.IsValid() {
 		s.addError("Remove(IP{})")
 	} else {
-		s.RemoveRange(IPRangeFrom(ip, ip))
+		s.RemoveRange(PoolRangeFrom(ip, ip))
 	}
 }
 
 // RemovePrefix removes all IPs in p from s.
-func (s *IPSetBuilder) RemovePrefix(p netip.Prefix) {
+func (s *PoolIPBuilder) RemovePrefix(p netip.Prefix) {
 	if r := RangeOfPrefix(p); r.IsValid() {
 		s.RemoveRange(r)
 	} else {
@@ -243,7 +243,7 @@ func (s *IPSetBuilder) RemovePrefix(p netip.Prefix) {
 }
 
 // RemoveRange removes all IPs in r from s.
-func (s *IPSetBuilder) RemoveRange(r IPRange) {
+func (s *PoolIPBuilder) RemoveRange(r PoolRange) {
 	if r.IsValid() {
 		s.out = append(s.out, r)
 	} else {
@@ -252,7 +252,7 @@ func (s *IPSetBuilder) RemoveRange(r IPRange) {
 }
 
 // RemoveSet removes all IPs in o from s.
-func (s *IPSetBuilder) RemoveSet(b *IPSet) {
+func (s *PoolIPBuilder) RemoveSet(b *PoolIP) {
 	if b == nil {
 		return
 	}
@@ -262,7 +262,7 @@ func (s *IPSetBuilder) RemoveSet(b *IPSet) {
 }
 
 // removeBuilder removes all IPs in b from s.
-func (s *IPSetBuilder) removeBuilder(b *IPSetBuilder) {
+func (s *PoolIPBuilder) removeBuilder(b *PoolIPBuilder) {
 	b.normalize()
 	for _, r := range b.in {
 		s.RemoveRange(r)
@@ -271,18 +271,18 @@ func (s *IPSetBuilder) removeBuilder(b *IPSetBuilder) {
 
 // Complement updates s to contain the complement of its current
 // contents.
-func (s *IPSetBuilder) Complement() {
+func (s *PoolIPBuilder) Complement() {
 	s.normalize()
 	s.out = s.in
-	s.in = []IPRange{
+	s.in = []PoolRange{
 		RangeOfPrefix(netip.PrefixFrom(netip.AddrFrom4([4]byte{}), 0)),
 		RangeOfPrefix(netip.PrefixFrom(netip.IPv6Unspecified(), 0)),
 	}
 }
 
 // Intersect updates s to the set intersection of s and b.
-func (s *IPSetBuilder) Intersect(b *IPSet) {
-	var o IPSetBuilder
+func (s *PoolIPBuilder) Intersect(b *PoolIP) {
+	var o PoolIPBuilder
 	o.Complement()
 	o.RemoveSet(b)
 	s.removeBuilder(&o)
@@ -293,22 +293,22 @@ func discardf(format string, args ...interface{}) {}
 // debugf is reassigned by tests.
 var debugf = discardf
 
-// IPSet returns an immutable IPSet representing the current state of s.
+// PoolIP returns an immutable PoolIP representing the current state of s.
 //
-// Most IPSetBuilder methods do not return errors.
+// Most PoolIPBuilder methods do not return errors.
 // Rather, the builder ignores any invalid inputs (such as an invalid IPPrefix),
 // and accumulates a list of any such errors that it encountered.
 //
-// IPSet also reports any such accumulated errors.
-// Even if the returned error is non-nil, the returned IPSet is usable
+// PoolIP also reports any such accumulated errors.
+// Even if the returned error is non-nil, the returned PoolIP is usable
 // and contains all modifications made with valid inputs.
 //
-// The builder remains usable after calling IPSet.
-// Calling IPSet clears any accumulated errors.
-func (s *IPSetBuilder) IPSet() (*IPSet, error) {
+// The builder remains usable after calling PoolIP.
+// Calling PoolIP clears any accumulated errors.
+func (s *PoolIPBuilder) PoolIP() (*PoolIP, error) {
 	s.normalize()
-	ret := &IPSet{
-		rr: append([]IPRange{}, s.in...),
+	ret := &PoolIP{
+		rr: append([]PoolRange{}, s.in...),
 	}
 	if len(s.errs) == 0 {
 		return ret, nil
@@ -319,29 +319,29 @@ func (s *IPSetBuilder) IPSet() (*IPSet, error) {
 	}
 }
 
-// IPSet represents a set of IP addresses.
+// PoolIP represents a set of IP addresses.
 //
-// IPSet is safe for concurrent use.
+// PoolIP is safe for concurrent use.
 // The zero value is a valid value representing a set of no IPs.
-// Use IPSetBuilder to construct IPSets.
-type IPSet struct {
-	// rr is the set of IPs that belong to this IPSet. The IPRanges
-	// are normalized according to IPSetBuilder.normalize, meaning
+// Use PoolIPBuilder to construct PoolIPs.
+type PoolIP struct {
+	// rr is the set of IPs that belong to this PoolIP. The PoolRanges
+	// are normalized according to PoolIPBuilder.normalize, meaning
 	// they are a sorted, minimal representation (no overlapping
 	// ranges, no contiguous ranges). The implementation of various
 	// methods rely on this property.
-	rr []IPRange
+	rr []PoolRange
 }
 
 // Ranges returns the minimum and sorted set of IP
 // ranges that covers s.
-func (s *IPSet) Ranges() []IPRange {
-	return append([]IPRange{}, s.rr...)
+func (s *PoolIP) Ranges() []PoolRange {
+	return append([]PoolRange{}, s.rr...)
 }
 
 // Prefixes returns the minimum and sorted set of IP prefixes
 // that covers s.
-func (s *IPSet) Prefixes() []netip.Prefix {
+func (s *PoolIP) Prefixes() []netip.Prefix {
 	out := make([]netip.Prefix, 0, len(s.rr))
 	for _, r := range s.rr {
 		out = append(out, r.Prefixes()...)
@@ -351,7 +351,7 @@ func (s *IPSet) Prefixes() []netip.Prefix {
 
 // Equal reports whether s and o represent the same set of IP
 // addresses.
-func (s *IPSet) Equal(o *IPSet) bool {
+func (s *PoolIP) Equal(o *PoolIP) bool {
 	if len(s.rr) != len(o.rr) {
 		return false
 	}
@@ -365,8 +365,8 @@ func (s *IPSet) Equal(o *IPSet) bool {
 
 // Contains reports whether ip is in s.
 // If ip has an IPv6 zone, Contains returns false,
-// because IPSets do not track zones.
-func (s *IPSet) Contains(ip netip.Addr) bool {
+// because PoolIPs do not track zones.
+func (s *PoolIP) Contains(ip netip.Addr) bool {
 	if ip.Zone() != "" {
 		return false
 	}
@@ -383,7 +383,7 @@ func (s *IPSet) Contains(ip netip.Addr) bool {
 }
 
 // ContainsRange reports whether all IPs in r are in s.
-func (s *IPSet) ContainsRange(r IPRange) bool {
+func (s *PoolIP) ContainsRange(r PoolRange) bool {
 	for _, x := range s.rr {
 		if r.coveredBy(x) {
 			return true
@@ -393,12 +393,12 @@ func (s *IPSet) ContainsRange(r IPRange) bool {
 }
 
 // ContainsPrefix reports whether all IPs in p are in s.
-func (s *IPSet) ContainsPrefix(p netip.Prefix) bool {
+func (s *PoolIP) ContainsPrefix(p netip.Prefix) bool {
 	return s.ContainsRange(RangeOfPrefix(p))
 }
 
 // Overlaps reports whether any IP in b is also in s.
-func (s *IPSet) Overlaps(b *IPSet) bool {
+func (s *PoolIP) Overlaps(b *PoolIP) bool {
 	// TODO: sorted ranges lets us do this in O(n+m)
 	for _, r := range s.rr {
 		for _, or := range b.rr {
@@ -411,7 +411,7 @@ func (s *IPSet) Overlaps(b *IPSet) bool {
 }
 
 // OverlapsRange reports whether any IP in r is also in s.
-func (s *IPSet) OverlapsRange(r IPRange) bool {
+func (s *PoolIP) OverlapsRange(r PoolRange) bool {
 	// TODO: sorted ranges lets us do this more efficiently.
 	for _, x := range s.rr {
 		if x.Overlaps(r) {
@@ -422,16 +422,16 @@ func (s *IPSet) OverlapsRange(r IPRange) bool {
 }
 
 // OverlapsPrefix reports whether any IP in p is also in s.
-func (s *IPSet) OverlapsPrefix(p netip.Prefix) bool {
+func (s *PoolIP) OverlapsPrefix(p netip.Prefix) bool {
 	return s.OverlapsRange(RangeOfPrefix(p))
 }
 
 // RemoveFreePrefix splits s into a Prefix of length bitLen and a new
-// IPSet with that prefix removed.
+// PoolIP with that prefix removed.
 //
 // If no contiguous prefix of length bitLen exists in s,
 // RemoveFreePrefix returns ok=false.
-func (s *IPSet) RemoveFreePrefix(bitLen uint8) (p netip.Prefix, newSet *IPSet, ok bool) {
+func (s *PoolIP) RemoveFreePrefix(bitLen uint8) (p netip.Prefix, newSet *PoolIP, ok bool) {
 	var bestFit netip.Prefix
 	for _, r := range s.rr {
 		for _, prefix := range r.Prefixes() {
@@ -454,10 +454,10 @@ func (s *IPSet) RemoveFreePrefix(bitLen uint8) (p netip.Prefix, newSet *IPSet, o
 
 	prefix := netip.PrefixFrom(bestFit.Addr(), int(bitLen))
 
-	var b IPSetBuilder
+	var b PoolIPBuilder
 	b.AddSet(s)
 	b.RemovePrefix(prefix)
-	newSet, _ = b.IPSet()
+	newSet, _ = b.PoolIP()
 	return prefix, newSet, true
 }
 

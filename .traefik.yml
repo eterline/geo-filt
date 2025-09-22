@@ -11,9 +11,10 @@ testData:
   enabled: true
   allowPrivate: true
   headerBearer: false
-  geoFile: "/etc/traefik/plugins/github.com/eterline/geo-filt/subnets_ipv4.csv"
-  geoFile6: "/etc/traefik/plugins/github.com/eterline/geo-filt/subnets_ipv6.csv"
   codeFile: "/etc/traefik/plugins/github.com/eterline/geo-filt/locations.csv"
+  geoFile: 
+    - "/etc/traefik/plugins/github.com/eterline/geo-filt/subnets_ipv4.csv"
+    - "/etc/traefik/plugins/github.com/eterline/geo-filt/subnets_ipv6.csv"
   tags:
     - "ru"
   defined:

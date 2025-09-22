@@ -5,22 +5,22 @@
 package main
 
 import (
-	"context"
-	"runtime"
-	"time"
+	"fmt"
 
 	"github.com/eterline/geo-filt/internal/adapter/ipmatch"
 )
 
 func main() {
-	mc, err := ipmatch.NewMatcherGeoDB(context.Background(), "./dataset/locations.csv", []string{"./dataset/subnets_ipv4.csv"}, []string{"ru"})
+
+	sfs, err := ipmatch.NewSubnetFileSelector("./dataset/locations.csv", []string{"ru", "US"})
 	if err != nil {
 		panic(err)
 	}
 
-	for {
-		mc.MustMatchParsed("10.192.0.100")
-		runtime.GC()
-		time.Sleep(1 * time.Second)
+	set, err := sfs.SelectSubnets([]string{"./dataset/subnets_ipv6.csv"})
+	if err != nil {
+		panic(err)
 	}
+
+	fmt.Println(set.Ranges())
 }

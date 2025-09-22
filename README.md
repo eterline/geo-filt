@@ -35,9 +35,10 @@ http:
                 enabled: true # Turn on filter plugin
                 headerBearer: false # Search request IP in headers "Forwarded", "X-Forwarded-For", "X-Real-IP"
                 allowPrivate: true # Allows RFC 1918 (IPv4 addresses), RFC 4193 (IPv6 addresses) and loopback IPs
-                codeFile: "./geo-filt/locations.csv"
-                geoFile: "./geo-filt/subnets_ipv4.csv"
-                geoFile6: "./geo-filt/subnets_ipv6.csv"
+                codeFile: "./plugins/github.com/eterline/geo-filt/dataset/locations.csv"
+                geoFile: 
+                  - "./plugins/github.com/eterline/geo-filt/dataset/subnets_ipv4.csv"
+                  - "./plugins/github.com/eterline/geo-filt/dataset/subnets_ipv6.csv"
                 tags: ["ru"] # Country allow code
                 defined: ["216.58.211.0/24", "142.250.74.142"] # IP or subnet allow
 

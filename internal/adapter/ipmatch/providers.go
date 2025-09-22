@@ -65,10 +65,10 @@ func NewSubnetFileSelector(codesFile string, codes []string) (SubnetFileSelector
 	return pool, nil
 }
 
-func (sfs SubnetFileSelector) SelectSubnets(subnetsFile []string) (*netipuse.IPSet, error) {
-	pool := &netipuse.IPSetBuilder{}
+func (sfs SubnetFileSelector) SelectSubnets(subnetsFile []string) (*netipuse.PoolIP, error) {
+	pool := &netipuse.PoolIPBuilder{}
 	if len(subnetsFile) < 1 {
-		return pool.IPSet()
+		return pool.PoolIP()
 	}
 
 	for _, file := range subnetsFile {
@@ -112,7 +112,11 @@ func (sfs SubnetFileSelector) SelectSubnets(subnetsFile []string) (*netipuse.IPS
 		}
 	}
 
-	return pool.IPSet()
+	return pool.PoolIP()
+}
+
+func (sfs SubnetFileSelector) Size() int {
+	return len(sfs)
 }
 
 func NewMatcherGeoDB(ctx context.Context, countryFile string, subnetsFile []string, codes []string) (*PoolMatcherIP, error) {
@@ -140,7 +144,7 @@ func NewMatcherDefinedSubnets(ctx context.Context, subnets []string) (*PoolMatch
 		return nil, errors.New("subnets is nil")
 	}
 
-	pool := &netipuse.IPSetBuilder{}
+	pool := &netipuse.PoolIPBuilder{}
 
 	for _, s := range subnets {
 		if p, err := netip.ParsePrefix(s); err == nil {
@@ -160,7 +164,7 @@ func NewMatcherDefinedSubnets(ctx context.Context, subnets []string) (*PoolMatch
 		}
 	}
 
-	set, err := pool.IPSet()
+	set, err := pool.PoolIP()
 	if err != nil {
 		return nil, err
 	}

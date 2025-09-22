@@ -19,7 +19,7 @@ import (
 type PoolMatcherIP struct {
 	name string
 	ctx  context.Context
-	pool *netipuse.IPSet
+	pool *netipuse.PoolIP
 }
 
 func (m *PoolMatcherIP) Provider() string {
