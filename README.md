@@ -51,8 +51,7 @@ Default parameters usage:
 | `headerBearer` | bool      | `false` | If `true`, try to resolve IP from headers; otherwise use `RemoteAddr` |
 | `allowPrivate` | bool      | `false` | Allow private and loopback IPs                                        |
 | `codeFile`     | string    | —       | Path to CSV with country codes                                        |
-| `geoFile`      | string    | —       | Path to IPv4 subnets CSV                                              |
-| `geoFile6`     | string    | —       | Path to IPv6 subnets CSV                                              |
+| `geoFile`      | \[]string | —       | Paths to IP subnets CSV                                              |                                      |
 | `tags`         | \[]string | —       | Allowed country ISO codes                                             |
 | `defined`      | \[]string | —       | Additional allowed IPs or subnets                                     |
 
