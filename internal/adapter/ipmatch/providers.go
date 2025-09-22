@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net"
 	"net/netip"
 	"os"
 	"path/filepath"
@@ -135,4 +136,19 @@ func ResolvePath(input string, mustExist bool) (string, error) {
 	}
 
 	return abs, nil
+}
+
+type PrivateMatcher struct{}
+
+func NewPrivateMatcher() *PrivateMatcher {
+	return &PrivateMatcher{}
+}
+
+func (m *PrivateMatcher) Match(ip net.IP) bool {
+	return ip.IsPrivate() || ip.IsLoopback()
+
+}
+
+func (m *PrivateMatcher) Provider() string {
+	return "private"
 }

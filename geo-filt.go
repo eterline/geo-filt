@@ -20,9 +20,10 @@ type AllowService interface {
 }
 
 type Config struct {
-	GeoFile string   `json:"geofile,omitempty"`
-	Tags    []string `json:"tags,omitempty"`
-	Defined []string `json:"defined,omitempty"`
+	GeoFile      string   `json:"geofile,omitempty"`
+	Tags         []string `json:"tags,omitempty"`
+	Defined      []string `json:"defined,omitempty"`
+	AllowPrivate bool     `json:"allowPrivate,omitempty"`
 }
 
 func CreateConfig() *Config {
@@ -46,6 +47,10 @@ func New(ctx context.Context, next http.Handler, config *Config, name string) (h
 		return nil, err
 	}
 	matchers = append(matchers, mch)
+
+	if config.AllowPrivate {
+		matchers = append(matchers, ipmatch.NewPrivateMatcher())
+	}
 
 	s, err := filter.NewIpFilterService(matchers)
 	if err != nil {

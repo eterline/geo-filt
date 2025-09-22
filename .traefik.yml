@@ -13,3 +13,4 @@ testData:
     - "ru"
   Defined:
     - "10.192.0.0/24"
+  allowPrivate: true
