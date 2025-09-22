@@ -7,6 +7,7 @@ package ipscraper
 import (
 	"net"
 	"net/http"
+	"net/netip"
 )
 
 type IpScraper struct {
@@ -21,7 +22,7 @@ func NewIpScraper(r *http.Request, h ...string) *IpScraper {
 	}
 }
 
-func (is *IpScraper) Scrape() (net.IP, bool) {
+func (is *IpScraper) Scrape() (netip.Addr, bool) {
 	ip, ok := is.headers()
 	if ok {
 		return ip, true
@@ -30,26 +31,26 @@ func (is *IpScraper) Scrape() (net.IP, bool) {
 	return is.remote()
 }
 
-func (is *IpScraper) headers() (net.IP, bool) {
+func (is *IpScraper) headers() (netip.Addr, bool) {
 	for _, wantedHeader := range is.headerQueue {
 		if h := is.req.Header.Get(wantedHeader); h != "" {
-			if ip := net.ParseIP(h); ip != nil {
+			if ip, err := netip.ParseAddr(h); err != nil {
 				return ip, true
 			}
 		}
 	}
-	return nil, false
+	return netip.Addr{}, false
 }
 
-func (is *IpScraper) remote() (net.IP, bool) {
+func (is *IpScraper) remote() (netip.Addr, bool) {
 	host, _, err := net.SplitHostPort(is.req.RemoteAddr)
 	if err != nil {
-		return nil, false
+		return netip.Addr{}, false
 	}
 
-	ip := net.ParseIP(host)
-	if ip == nil {
-		return nil, false
+	ip, err := netip.ParseAddr(host)
+	if err != nil {
+		return netip.Addr{}, false
 	}
 
 	return ip, true

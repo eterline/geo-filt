@@ -7,7 +7,6 @@ package ipmatch
 import (
 	"context"
 	"errors"
-	"net"
 	"net/netip"
 	"sync"
 )
@@ -23,34 +22,27 @@ func (m *PoolMatcherIP) Provider() string {
 	return m.name
 }
 
-func (m *PoolMatcherIP) Match(ip net.IP) bool {
+func (m *PoolMatcherIP) Match(ip netip.Addr) bool {
 
-	if ip4 := ip.To4(); ip4 != nil {
-		ip = ip4
-	} else {
-		ip = ip.To16()
-	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
 
-	if addr, ok := netip.AddrFromSlice(ip); ok {
-		m.mu.Lock()
-		defer m.mu.Unlock()
+	for _, p := range m.pool {
+		if m.ctx.Err() != nil {
+			return false
+		}
 
-		for _, p := range m.pool {
-			if m.ctx.Err() != nil {
-				return false
-			}
-
-			if p.Contains(addr) {
-				return true
-			}
+		if p.Contains(ip) {
+			return true
 		}
 	}
+
 	return false
 }
 
 func (m *PoolMatcherIP) MatchParsed(s string) (bool, error) {
-	ip := net.ParseIP(s)
-	if ip == nil {
+	ip, err := netip.ParseAddr(s)
+	if err != nil {
 		return false, errors.New("invalid ip address")
 	}
 	return m.Match(ip), nil

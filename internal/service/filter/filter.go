@@ -6,12 +6,12 @@ package filter
 
 import (
 	"errors"
-	"net"
+	"net/netip"
 )
 
 type MatchProvider interface {
 	Provider() string
-	Match(ip net.IP) bool
+	Match(ip netip.Addr) bool
 }
 
 type IpFilterService struct {
@@ -28,7 +28,7 @@ func NewIpFilterService(q []MatchProvider) (*IpFilterService, error) {
 	}, nil
 }
 
-func (ifs *IpFilterService) IsAllowed(ip net.IP) bool {
+func (ifs *IpFilterService) IsAllowed(ip netip.Addr) bool {
 	for _, inst := range ifs.provideQueue {
 		if inst.Match(ip) {
 			return true

@@ -9,9 +9,10 @@ bannerPath: ""
 
 testData:
   enabled: true
-  geoFile: "/etc/traefik/plugins/github.com/eterline/geo-filt/geoip.dat"
+  allowPrivate: true
+  geoFile: "/etc/traefik/plugins/github.com/eterline/geo-filt/IPLocate-Country-GeoIPCompat-Blocks-IPv4.csv"
+  codeFile: "/etc/traefik/plugins/github.com/eterline/geo-filt/IPLocate-Country-GeoIPCompat-Locations-en.csv"
   tags:
     - "ru"
   defined:
     - "10.192.0.0/24"
-  allowPrivate: true

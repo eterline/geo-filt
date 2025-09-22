@@ -6,61 +6,123 @@ package ipmatch
 
 import (
 	"context"
+	"encoding/csv"
 	"errors"
 	"fmt"
-	"net"
 	"net/netip"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 )
 
-// convertToNetip - converts v2ray-core router CIDRs to Go native netip.Prefix
-// func convertToNetip(cidrs []*router.CIDR) ([]netip.Prefix, error) {
-// 	if cidrs == nil {
-// 		return nil, errors.New("cidr list is nil")
-// 	}
+func selectCodeIDs(subnetsFile string, codes []string) (map[int64]struct{}, error) {
+	file, err := resolvePath(subnetsFile, true)
+	if err != nil {
+		return nil, err
+	}
 
-// 	pool := make([]netip.Prefix, 0, len(cidrs))
+	f, err := os.Open(file)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
 
-// 	for _, c := range cidrs {
-// 		addr, ok := netip.AddrFromSlice(c.Ip) // c.Ip — []byte
-// 		if !ok {
-// 			continue
-// 		}
-// 		prefix := netip.PrefixFrom(addr, int(c.Prefix))
-// 		pool = append(pool, prefix)
-// 	}
+	records, err := csv.NewReader(f).ReadAll()
+	if err != nil {
+		return nil, err
+	}
 
-// 	return pool, nil
-// }
+	pool := map[int64]struct{}{}
 
-// func NewMatcherGeofileV2ray(ctx context.Context, filename, country string) (*PoolMatcherIP, error) {
-// 	filename, err := ResolvePath(filename, false)
-// 	if err != nil {
-// 		return nil, err
-// 	}
+	for i, code := range codes {
+		codes[i] = strings.TrimSpace(strings.ToUpper(code))
+	}
 
-// 	loader := geodata.NewGeodataLoader()
+	for _, record := range records {
+		if len(record) < 5 {
+			continue
+		}
 
-// 	cidrs, err := loader.LoadIP(filename, country)
-// 	if err != nil {
-// 		return nil, fmt.Errorf("failed to load geofile: %w", err)
-// 	}
+		id, err := strconv.ParseInt(record[0], 10, 64)
+		if err != nil {
+			continue
+		}
 
-// 	pool, err := convertToNetip(cidrs)
-// 	if err != nil {
-// 		return nil, fmt.Errorf("failed to load geofile: %w", err)
-// 	}
+		for _, code := range codes {
+			if record[4] == code {
+				pool[id] = struct{}{}
+				continue
+			}
+		}
+	}
 
-// 	self := &PoolMatcherIP{
-// 		name: "v2ray_geofile",
-// 		ctx:  ctx,
-// 		pool: pool,
-// 	}
+	return pool, nil
+}
 
-// 	return self, nil
-// }
+func matchPrefixesById(subnetsFile string, idPool map[int64]struct{}) ([]netip.Prefix, error) {
+	pool := []netip.Prefix{}
+	if idPool == nil {
+		return pool, nil
+	}
+
+	file, err := resolvePath(subnetsFile, true)
+	if err != nil {
+		return nil, err
+	}
+
+	f, err := os.Open(file)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	records, err := csv.NewReader(f).ReadAll()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, record := range records {
+		if len(record) < 3 {
+			continue
+		}
+
+		id, err := strconv.ParseInt(record[2], 10, 64)
+		if err != nil {
+			continue
+		}
+
+		if _, ok := idPool[id]; ok {
+			pf, err := netip.ParsePrefix(record[0])
+			if err != nil {
+				continue
+			}
+			pool = append(pool, pf)
+		}
+	}
+
+	return pool, nil
+}
+
+func NewMatcherGeoDB(ctx context.Context, countryFile, subnetsFile string, codes ...string) (*PoolMatcherIP, error) {
+	idPool, err := selectCodeIDs(countryFile, codes)
+	if err != nil {
+		return nil, err
+	}
+
+	pool, err := matchPrefixesById(subnetsFile, idPool)
+	if err != nil {
+		return nil, err
+	}
+
+	self := &PoolMatcherIP{
+		name: "geodb",
+		ctx:  ctx,
+		pool: pool,
+	}
+
+	return self, nil
+}
 
 func NewMatcherDefinedSubnets(ctx context.Context, subnets []string) (*PoolMatcherIP, error) {
 	if subnets == nil {
@@ -96,7 +158,7 @@ func NewMatcherDefinedSubnets(ctx context.Context, subnets []string) (*PoolMatch
 	return self, nil
 }
 
-func ResolvePath(input string, mustExist bool) (string, error) {
+func resolvePath(input string, mustExist bool) (string, error) {
 	if input == "" {
 		return "", errors.New("empty path")
 	}
@@ -144,7 +206,7 @@ func NewPrivateMatcher() *PrivateMatcher {
 	return &PrivateMatcher{}
 }
 
-func (m *PrivateMatcher) Match(ip net.IP) bool {
+func (m *PrivateMatcher) Match(ip netip.Addr) bool {
 	return ip.IsPrivate() || ip.IsLoopback()
 
 }

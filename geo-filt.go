@@ -7,8 +7,8 @@ package geo_filt
 import (
 	"context"
 	"fmt"
-	"net"
 	"net/http"
+	"net/netip"
 	"os"
 
 	"github.com/eterline/geo-filt/internal/adapter/ipmatch"
@@ -17,13 +17,14 @@ import (
 )
 
 type AllowService interface {
-	IsAllowed(ip net.IP) bool
+	IsAllowed(ip netip.Addr) bool
 }
 
 type Config struct {
 	Enabled      bool     `json:"enabled,omitempty" yaml:"enabled,omitempty"`
 	AllowPrivate bool     `json:"allowPrivate,omitempty" yaml:"allowPrivate,omitempty"`
 	GeoFile      string   `json:"geoFile,omitempty" yaml:"geoFile,omitempty"`
+	CodeFile     string   `json:"codeFile,omitempty" yaml:"codeFile,omitempty"`
 	Tags         []string `json:"tags,omitempty" yaml:"tags,omitempty"`
 	Defined      []string `json:"defined,omitempty" yaml:"defined,omitempty"`
 }
@@ -68,6 +69,14 @@ func New(ctx context.Context, next http.Handler, config *Config, name string) (h
 		return nil, err
 	}
 	matchers = append(matchers, mch)
+
+	if len(config.Tags) > 0 {
+		mch, err := ipmatch.NewMatcherGeoDB(ctx, config.CodeFile, config.GeoFile, config.Tags...)
+		if err != nil {
+			return nil, err
+		}
+		matchers = append(matchers, mch)
+	}
 
 	filter, err := filter.NewIpFilterService(matchers)
 	if err != nil {
