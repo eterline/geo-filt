@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"os"
 
 	"github.com/eterline/geo-filt/internal/adapter/ipmatch"
 	"github.com/eterline/geo-filt/internal/service/filter"
@@ -50,10 +51,17 @@ func New(ctx context.Context, next http.Handler, config *Config, name string) (h
 	}
 
 	if !config.Enabled {
+		fmt.Fprint(os.Stdout, "geo-filt - disabled. Skip configuration")
 		return plugin, nil
 	}
 
 	matchers := []filter.MatchProvider{}
+
+	fmt.Fprint(os.Stdout, "geo-filt - starting init configuration")
+
+	if config.AllowPrivate {
+		matchers = append(matchers, ipmatch.NewPrivateMatcher())
+	}
 
 	mch, err := ipmatch.NewMatcherDefinedSubnets(ctx, config.Defined)
 	if err != nil {
@@ -61,16 +69,17 @@ func New(ctx context.Context, next http.Handler, config *Config, name string) (h
 	}
 	matchers = append(matchers, mch)
 
-	if config.AllowPrivate {
-		matchers = append(matchers, ipmatch.NewPrivateMatcher())
-	}
-
 	filter, err := filter.NewIpFilterService(matchers)
 	if err != nil {
 		return nil, err
 	}
 
 	plugin.filter = filter
+
+	for _, matcher := range matchers {
+		fmt.Fprintf(os.Stdout, "geo-filt - include '%s' matcher", matcher.Provider())
+	}
+
 	return plugin, nil
 }
 
