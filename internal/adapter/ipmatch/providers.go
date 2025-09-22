@@ -12,57 +12,54 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-
-	"github.com/faireal/trojan-go/common/geodata"
-	"github.com/v2fly/v2ray-core/v4/app/router"
 )
 
 // convertToNetip - converts v2ray-core router CIDRs to Go native netip.Prefix
-func convertToNetip(cidrs []*router.CIDR) ([]netip.Prefix, error) {
-	if cidrs == nil {
-		return nil, errors.New("cidr list is nil")
-	}
+// func convertToNetip(cidrs []*router.CIDR) ([]netip.Prefix, error) {
+// 	if cidrs == nil {
+// 		return nil, errors.New("cidr list is nil")
+// 	}
 
-	pool := make([]netip.Prefix, 0, len(cidrs))
+// 	pool := make([]netip.Prefix, 0, len(cidrs))
 
-	for _, c := range cidrs {
-		addr, ok := netip.AddrFromSlice(c.Ip) // c.Ip — []byte
-		if !ok {
-			continue
-		}
-		prefix := netip.PrefixFrom(addr, int(c.Prefix))
-		pool = append(pool, prefix)
-	}
+// 	for _, c := range cidrs {
+// 		addr, ok := netip.AddrFromSlice(c.Ip) // c.Ip — []byte
+// 		if !ok {
+// 			continue
+// 		}
+// 		prefix := netip.PrefixFrom(addr, int(c.Prefix))
+// 		pool = append(pool, prefix)
+// 	}
 
-	return pool, nil
-}
+// 	return pool, nil
+// }
 
-func NewMatcherGeofileV2ray(ctx context.Context, filename, country string) (*PoolMatcherIP, error) {
-	filename, err := ResolvePath(filename, false)
-	if err != nil {
-		return nil, err
-	}
+// func NewMatcherGeofileV2ray(ctx context.Context, filename, country string) (*PoolMatcherIP, error) {
+// 	filename, err := ResolvePath(filename, false)
+// 	if err != nil {
+// 		return nil, err
+// 	}
 
-	loader := geodata.NewGeodataLoader()
+// 	loader := geodata.NewGeodataLoader()
 
-	cidrs, err := loader.LoadIP(filename, country)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load geofile: %w", err)
-	}
+// 	cidrs, err := loader.LoadIP(filename, country)
+// 	if err != nil {
+// 		return nil, fmt.Errorf("failed to load geofile: %w", err)
+// 	}
 
-	pool, err := convertToNetip(cidrs)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load geofile: %w", err)
-	}
+// 	pool, err := convertToNetip(cidrs)
+// 	if err != nil {
+// 		return nil, fmt.Errorf("failed to load geofile: %w", err)
+// 	}
 
-	self := &PoolMatcherIP{
-		name: "v2ray_geofile",
-		ctx:  ctx,
-		pool: pool,
-	}
+// 	self := &PoolMatcherIP{
+// 		name: "v2ray_geofile",
+// 		ctx:  ctx,
+// 		pool: pool,
+// 	}
 
-	return self, nil
-}
+// 	return self, nil
+// }
 
 func NewMatcherDefinedSubnets(ctx context.Context, subnets []string) (*PoolMatcherIP, error) {
 	if subnets == nil {
