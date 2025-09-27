@@ -6,7 +6,6 @@ package geo_filt
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"net/netip"
 	"os"
@@ -49,13 +48,16 @@ func CreateConfig() *Config {
 	}
 }
 
-/*
-	geoConfExists - tests available geo config strings.
-
-okV4 - IPv4 file exists. okV6 - IPv6 file exists.
-*/
+// geoConfExists - tests available geo config strings.
 func (c Config) geoConfExists() bool {
-	return (len(c.Tags) > 0) && (len(c.GeoFile) > 0)
+	return (len(c.Tags) > 0) &&
+		(len(c.GeoFile) > 0) &&
+		(c.CodeFile != "")
+}
+
+// definedExists - tests available defined strings.
+func (c Config) definedExists() bool {
+	return len(c.Defined) > 0
 }
 
 // ===========================
@@ -69,11 +71,16 @@ type GeoFiltPlugin struct {
 }
 
 func New(ctx context.Context, next http.Handler, config *Config, name string) (http.Handler, error) {
-
+	os.Stdout.WriteString("geo-filt - starting init configuration")
+	filter := filter.NewIpFilterService()
 	plugin := &GeoFiltPlugin{
 		name:    name,
 		next:    next,
 		enabled: config.Enabled,
+		// set filter service to plugin
+		filter: filter,
+		// set extracting IP service to plugin
+		ipExtract: ipscraper.NewIpExtractor(config.HeaderBearer),
 	}
 
 	// if disabled, plugin will pass request in any case
@@ -82,45 +89,30 @@ func New(ctx context.Context, next http.Handler, config *Config, name string) (h
 		return plugin, nil
 	}
 
-	// init match queue
-	queue := []filter.MatchProvider{}
-	os.Stdout.WriteString("geo-filt - starting init configuration")
+	// allow defined in config subnets and IPs (look at Config.Defined)
+	if config.definedExists() {
+		mch, err := ipmatch.NewMatcherDefinedSubnets(ctx, config.Defined)
+		if err != nil {
+			return nil, err
+		}
+		filter.Add(mch)
+	}
 
 	// default allow for private network IPs
 	// as RFC 1918 (IPv4 addresses) and RFC 4193 (IPv6 addresses)
 	// includes loopback IPs
 	if config.AllowPrivate {
-		queue = append(queue, ipmatch.NewPrivateMatcher())
+		mch := ipmatch.NewPrivateMatcher()
+		filter.Add(mch)
 	}
 
-	// allow defined in config subnets and IPs (look at Config.Defined)
-	mch, err := ipmatch.NewMatcherDefinedSubnets(ctx, config.Defined)
-	if err != nil {
-		return nil, err
-	}
-	queue = append(queue, mch)
-
+	// allow subnets from GeoDB
 	if config.geoConfExists() {
-		mch, err = ipmatch.NewMatcherGeoDB(ctx, config.CodeFile, config.GeoFile, config.Tags)
+		mch, err := ipmatch.NewMatcherGeoDB(ctx, config.CodeFile, config.GeoFile, config.Tags)
 		if err != nil {
 			return nil, err
 		}
-		queue = append(queue, mch)
-	}
-
-	fl, err := filter.NewIpFilterService(queue)
-	if err != nil {
-		return nil, err
-	}
-
-	// set filter service to plugin
-	plugin.filter = fl
-	// set extracting IP service to plugin
-	plugin.ipExtract = ipscraper.NewIpExtractor(config.HeaderBearer)
-
-	for _, matcher := range queue {
-		msg := fmt.Sprintf("geo-filt - include '%s' matcher", matcher.Provider())
-		os.Stdout.WriteString(msg)
+		filter.Add(mch)
 	}
 
 	return plugin, nil

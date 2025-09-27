@@ -5,8 +5,9 @@
 package filter
 
 import (
-	"errors"
+	"fmt"
 	"net/netip"
+	"os"
 )
 
 type MatchProvider interface {
@@ -18,14 +19,19 @@ type IpFilterService struct {
 	provideQueue []MatchProvider
 }
 
-func NewIpFilterService(q []MatchProvider) (*IpFilterService, error) {
-	if q == nil && len(q) < 1 {
-		return nil, errors.New("no IP sampling provider has been created")
-	}
-
+func NewIpFilterService() *IpFilterService {
 	return &IpFilterService{
-		provideQueue: q,
-	}, nil
+		provideQueue: make([]MatchProvider, 0),
+	}
+}
+
+// Add - adds MatchProvider object
+func (ifs *IpFilterService) Add(mp MatchProvider) {
+	if mp == nil {
+		panic("match provider is nil")
+	}
+	os.Stdout.WriteString(fmt.Sprintf("match provider - added matcher: %s", mp.Provider()))
+	ifs.provideQueue = append(ifs.provideQueue, mp)
 }
 
 func (ifs *IpFilterService) IsAllowed(ip netip.Addr) bool {
