@@ -66,6 +66,15 @@ http:
         - geofilter@file
 ```
 
+## Update database
+
+1. Go to [Site](https://www.iplocate.io).
+2. Register in site. [Reg screenshot](./img/reg.jpg)
+3. Copy api key. [Key screenshot](./img/key.jpg)
+4. go to address: `https://www.iplocate.io/download/ip-to-country-geolite2.csv?apikey=`<b>\<api_key_here\></b>.
+5. Unzip archive. [Key screenshot](./img/cli.jpg)
+6. Move it to container mounted dir and set path in config.
+
 ## License
 
 [AGPL-3.0](https://www.gnu.org/licenses/agpl-3.0.txt)
