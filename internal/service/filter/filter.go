@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"net/netip"
 	"os"
+
+	"github.com/eterline/somedata"
 )
 
 type MatchProvider interface {
@@ -41,4 +43,26 @@ func (ifs *IpFilterService) IsAllowed(ip netip.Addr) bool {
 		}
 	}
 	return false
+}
+
+type RingRingBufferIPCache struct {
+	ring somedata.RingBuffer[netip.Addr]
+}
+
+func NewRingBufferIPCache() *RingRingBufferIPCache {
+	return &RingRingBufferIPCache{
+		ring: somedata.NewSyncRingBuffer[netip.Addr](128),
+	}
+}
+
+func (rrb *RingRingBufferIPCache) Exists(ip netip.Addr) bool {
+	return rrb.ring.Contains(ip)
+}
+
+func (rrb *RingRingBufferIPCache) Remind(ip netip.Addr) {
+	rrb.ring.Add(ip)
+}
+
+func (rrb *RingRingBufferIPCache) Flush() {
+	rrb.ring.Clear()
 }

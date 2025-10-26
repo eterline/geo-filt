@@ -15,6 +15,12 @@ import (
 	"github.com/eterline/geo-filt/internal/service/ipscraper"
 )
 
+type FilterCache interface {
+	Exists(ip netip.Addr) bool
+	Remind(ip netip.Addr)
+	Flush()
+}
+
 type AllowService interface {
 	IsAllowed(ip netip.Addr) bool
 }
@@ -30,6 +36,7 @@ type Config struct {
 	Enabled      bool     `json:"enabled,omitempty" yaml:"enabled,omitempty"`
 	AllowPrivate bool     `json:"allowPrivate,omitempty" yaml:"allowPrivate,omitempty"`
 	HeaderBearer bool     `json:"headerBearer,omitempty" yaml:"headerBearer,omitempty"`
+	Cache        bool     `json:"cache,omitempty" yaml:"cache,omitempty"`
 	CodeFile     string   `json:"codeFile,omitempty" yaml:"codeFile,omitempty"`
 	GeoFile      []string `json:"geoFile,omitempty" yaml:"geoFile,omitempty"`
 	Tags         []string `json:"tags,omitempty" yaml:"tags,omitempty"`
@@ -41,6 +48,7 @@ func CreateConfig() *Config {
 		Enabled:      false,
 		AllowPrivate: false,
 		HeaderBearer: false,
+		Cache:        false,
 		CodeFile:     "",
 		GeoFile:      []string{},
 		Tags:         []string{},
@@ -67,18 +75,19 @@ type GeoFiltPlugin struct {
 	enabled   bool
 	next      http.Handler
 	filter    AllowService
+	cache     FilterCache
 	ipExtract ExtractorIP
 }
 
 func New(ctx context.Context, next http.Handler, config *Config, name string) (http.Handler, error) {
 	os.Stdout.WriteString("geo-filt - starting init configuration")
-	filter := filter.NewIpFilterService()
+	filterSrvc := filter.NewIpFilterService()
 	plugin := &GeoFiltPlugin{
 		name:    name,
 		next:    next,
 		enabled: config.Enabled,
 		// set filter service to plugin
-		filter: filter,
+		filter: filterSrvc,
 		// set extracting IP service to plugin
 		ipExtract: ipscraper.NewIpExtractor(config.HeaderBearer),
 	}
@@ -89,13 +98,18 @@ func New(ctx context.Context, next http.Handler, config *Config, name string) (h
 		return plugin, nil
 	}
 
+	if config.Cache {
+		os.Stdout.WriteString("geo-filt - cache enabled")
+		plugin.cache = filter.NewRingBufferIPCache()
+	}
+
 	// allow defined in config subnets and IPs (look at Config.Defined)
 	if config.definedExists() {
 		mch, err := ipmatch.NewMatcherDefinedSubnets(ctx, config.Defined)
 		if err != nil {
 			return nil, err
 		}
-		filter.Add(mch)
+		filterSrvc.Add(mch)
 	}
 
 	// default allow for private network IPs
@@ -103,7 +117,7 @@ func New(ctx context.Context, next http.Handler, config *Config, name string) (h
 	// includes loopback IPs
 	if config.AllowPrivate {
 		mch := ipmatch.NewPrivateMatcher()
-		filter.Add(mch)
+		filterSrvc.Add(mch)
 	}
 
 	// allow subnets from GeoDB
@@ -112,7 +126,7 @@ func New(ctx context.Context, next http.Handler, config *Config, name string) (h
 		if err != nil {
 			return nil, err
 		}
-		filter.Add(mch)
+		filterSrvc.Add(mch)
 	}
 
 	return plugin, nil
@@ -127,7 +141,15 @@ func (plugin *GeoFiltPlugin) ServeHTTP(rw http.ResponseWriter, req *http.Request
 	}
 
 	if ip, ok := plugin.ipExtract.ExtractIP(req); ok {
+		if plugin.cache != nil && plugin.cache.Exists(ip) {
+			plugin.next.ServeHTTP(rw, req)
+			return
+		}
+
 		if plugin.filter.IsAllowed(ip) {
+			if plugin.cache != nil {
+				plugin.cache.Remind(ip)
+			}
 			plugin.next.ServeHTTP(rw, req)
 			return
 		}
