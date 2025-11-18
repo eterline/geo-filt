@@ -104,7 +104,7 @@ func New(ctx context.Context, next http.Handler, config *Config, name string) (h
 
 	if config.Cache {
 		log.Info("ip cache enabled")
-		plugin.cache = filter.NewRingBufferIPCache()
+		plugin.cache = filter.NewRingIPCache()
 	}
 
 	// allow defined in config subnets and IPs (look at Config.Defined)
