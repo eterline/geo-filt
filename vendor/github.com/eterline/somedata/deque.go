@@ -83,29 +83,6 @@ func (q *deque[T]) PopFront() T {
 	return ret
 }
 
-// IterPopFront returns an iterator that iteratively removes items from the
-// front of the deque. This is more efficient than removing items one at a time
-// because it avoids intermediate resizing. If a resize is necessary, only one
-// is done when iteration ends.
-func (q *deque[T]) IterPopFront() iter.Seq[T] {
-	return func(yield func(T) bool) {
-		if q.Len() == 0 {
-			return
-		}
-		var zero T
-		for q.count != 0 {
-			ret := q.buf[q.head]
-			q.buf[q.head] = zero
-			q.head = q.next(q.head)
-			q.count--
-			if !yield(ret) {
-				break
-			}
-		}
-		q.shrinkToFit()
-	}
-}
-
 // PopBack removes and returns the element from the back of the queue.
 // Implements LIFO when used with PushBack. If the queue is empty, the call
 // panics.
