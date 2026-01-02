@@ -1,0 +1,44 @@
+version: '3'
+
+# ============== Tasks ==============
+tasks:
+
+  # Clean Go environment
+  clean:
+    desc: "Clean Go modules and build artifacts"
+    silent: true
+    cmds:
+      - echo "=== Cleaning Go Environment ==="
+      - go mod tidy
+      - go clean
+      - echo "=== Clean Completed ==="
+
+  fully-clean:
+    desc: "Full cleanup of Go environment and build artifacts"
+    silent: true
+    cmds:
+      - echo "=== Full Go Cleanup ==="
+      - go clean -cache
+      - go clean -testcache
+      - go clean -modcache
+      - go mod tidy
+      - echo "=== Cleanup Completed ==="
+
+  checkup:
+    desc: "Go lint tests and severity tests"
+    silent: true
+    cmds:
+      - echo "=== Linting code ==="
+      - golangci-lint run
+      - echo "=== Code lint tested ==="
+
+  # Project tests
+  tests:
+    desc: "Run all project tests"
+    silent: true
+    cmds:
+      - echo "=== Running Project Tests ==="
+      - go clean -testcache
+      # Run tests in all packages, ignore packages without tests
+      - go test ./...
+      - echo "=== Tests Completed ==="

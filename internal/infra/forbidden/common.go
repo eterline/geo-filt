@@ -3,7 +3,22 @@ package forbidden
 import (
 	"net/http"
 	"os"
+
+	"github.com/eterline/geo-filt/internal/model"
 )
+
+func InitForbiddenWriter(t, content string) model.ResponseForbiddenWriter {
+	var fWr model.ResponseForbiddenWriter
+
+	switch t {
+	case "html":
+		fWr = NewHTMLWriter(content)
+	default:
+		fWr = NewPlainWriter(content)
+	}
+
+	return fWr
+}
 
 type PlainWriter struct {
 	Text []byte

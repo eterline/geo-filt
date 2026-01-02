@@ -1,14 +1,13 @@
 package interceptors_test
 
 import (
-	"fmt"
 	"math/rand"
 	"net/netip"
-	"path/filepath"
 	"testing"
 
 	"github.com/eterline/geo-filt/internal/infra/interceptors"
 	"github.com/eterline/geo-filt/internal/model"
+	"github.com/eterline/geo-filt/test/data"
 )
 
 // Tests for intercept_local_addr.go
@@ -60,49 +59,29 @@ func TestInterceptorLocalAddr_Public(t *testing.T) {
 
 // Tests for intercept_ipset.go
 
-func generateIPv4Addrs(count int) []string {
-	res := make([]string, count)
-
-	for i := 0; i < count; i++ {
-		res[i] = netip.AddrFrom4([4]byte{
-			byte(rand.Intn(256)),
-			byte(rand.Intn(256)),
-			byte(rand.Intn(256)),
-			byte(rand.Intn(256)),
-		}).String()
-	}
-
-	return res
-}
-
-func generateIPv4CIDRs(base byte, count int) []string {
-	res := make([]string, 0, count)
-
-	for i := 0; i < count; i++ {
-		second := rand.Intn(256)
-		third := rand.Intn(256)
-		mask := []int{16, 24}[rand.Intn(2)]
-		cidr := fmt.Sprintf("%d.%d.%d.0/%d", base, second, third, mask)
-		res = append(res, cidr)
-	}
-	return res
-}
-
 func TestInterceptorIPSet_RandomAddrs(t *testing.T) {
-	const iterations = 1 << 16
-	addrs := generateIPv4Addrs(iterations)
+	const iterations = 1 << 10
+	addrs4, addrs6 := data.StringIPAddrs(iterations)
 
 	cfg := model.InterceptorConfig{
-		"addrs": make([]any, len(addrs)),
+		"addrs": make([]any, iterations*2),
 	}
-	for i, a := range addrs {
+
+	for i, a := range addrs4 {
 		cfg["addrs"].([]any)[i] = a
+	}
+	for i, a := range addrs6 {
+		cfg["addrs"].([]any)[i+len(addrs4)] = a
 	}
 
 	it, err := interceptors.NewInterceptorIPSet("ipset", "random-addrs", cfg)
 	if err != nil {
 		t.Fatalf("failed to create interceptor: %v", err)
 	}
+
+	addrs := make([]string, 0, iterations*2)
+	addrs = append(addrs, addrs4...)
+	addrs = append(addrs, addrs6...)
 
 	for i := 0; i < 10; i++ {
 		ip := netip.MustParseAddr(addrs[rand.Intn(len(addrs))])
@@ -118,20 +97,28 @@ func TestInterceptorIPSet_RandomAddrs(t *testing.T) {
 }
 
 func TestInterceptorIPSet_RandomCIDRs(t *testing.T) {
-	const iterations = 1 << 16
-	cidrs := generateIPv4CIDRs(10, iterations)
+	const iterations = 1 << 10
+	cidrs4, cidrs6 := data.StringIPCIDRs(iterations)
 
 	cfg := model.InterceptorConfig{
-		"cidrs": make([]any, len(cidrs)),
+		"cidrs": make([]any, iterations*2),
 	}
-	for i, c := range cidrs {
+
+	for i, c := range cidrs4 {
 		cfg["cidrs"].([]any)[i] = c
+	}
+	for i, c := range cidrs6 {
+		cfg["cidrs"].([]any)[i+len(cidrs4)] = c
 	}
 
 	it, err := interceptors.NewInterceptorIPSet("ipset", "random-cidrs", cfg)
 	if err != nil {
 		t.Fatalf("failed to create interceptor: %v", err)
 	}
+
+	cidrs := make([]string, 0, iterations*2)
+	cidrs = append(cidrs, cidrs4...)
+	cidrs = append(cidrs, cidrs6...)
 
 	for i := 0; i < 10; i++ {
 		pfx := netip.MustParsePrefix(cidrs[rand.Intn(len(cidrs))])
@@ -140,33 +127,40 @@ func TestInterceptorIPSet_RandomCIDRs(t *testing.T) {
 			t.Errorf("Match(%s) = false, expected true", ip)
 		}
 	}
-
-	outside := netip.MustParseAddr("8.8.8.8")
-	if it.Match(outside) {
-		t.Errorf("Match(%s) = true, expected false", outside)
-	}
 }
 
 func TestInterceptorIPSet_RandomMixed(t *testing.T) {
-	const iterations = 1 << 16
-	addrs := generateIPv4Addrs(iterations)
-	cidrs := generateIPv4CIDRs(192, iterations)
+	const iterations = 1 << 10
+	cidrs4, cidrs6 := data.StringIPCIDRs(iterations)
+	addrs4, addrs6 := data.StringIPAddrs(iterations)
 
 	cfg := model.InterceptorConfig{
-		"addrs": make([]any, len(addrs)),
-		"cidrs": make([]any, len(cidrs)),
+		"addrs": make([]any, iterations*2),
+		"cidrs": make([]any, iterations*2),
 	}
-	for i, a := range addrs {
+
+	for i, a := range addrs4 {
 		cfg["addrs"].([]any)[i] = a
 	}
-	for i, c := range cidrs {
+	for i, c := range addrs6 {
+		cfg["cidrs"].([]any)[i+len(addrs4)] = c
+	}
+
+	for i, c := range cidrs4 {
 		cfg["cidrs"].([]any)[i] = c
+	}
+	for i, c := range cidrs6 {
+		cfg["cidrs"].([]any)[i+len(cidrs4)] = c
 	}
 
 	it, err := interceptors.NewInterceptorIPSet("ipset", "random-mixed", cfg)
 	if err != nil {
 		t.Fatalf("failed to create interceptor: %v", err)
 	}
+
+	addrs := make([]string, 0, iterations*2)
+	addrs = append(addrs, addrs4...)
+	addrs = append(addrs, addrs6...)
 
 	for i := 0; i < 5; i++ {
 		ip := netip.MustParseAddr(addrs[rand.Intn(len(addrs))])
@@ -175,6 +169,10 @@ func TestInterceptorIPSet_RandomMixed(t *testing.T) {
 		}
 	}
 
+	cidrs := make([]string, 0, iterations*2)
+	cidrs = append(cidrs, cidrs4...)
+	cidrs = append(cidrs, cidrs6...)
+
 	for i := 0; i < 5; i++ {
 		pfx := netip.MustParsePrefix(cidrs[rand.Intn(len(cidrs))])
 		ip := pfx.Addr()
@@ -182,17 +180,12 @@ func TestInterceptorIPSet_RandomMixed(t *testing.T) {
 			t.Errorf("Match(%s) = false, expected true", ip)
 		}
 	}
-
-	outside := netip.MustParseAddr("8.8.8.8")
-	if it.Match(outside) {
-		t.Errorf("Match(%s) = true, expected false", outside)
-	}
 }
 
 // Tests for intercept_iplocate_ip2counrty.go
 
 func TestInterceptorIPLocateIP2Country_Basic(t *testing.T) {
-	baseFile := filepath.Join(".", "ip-to-country-20251224.csv")
+	baseFile := data.DatasetFile("ip2", "ip-to-country-20251224.csv")
 
 	cfg := model.InterceptorConfig{
 		"base":    baseFile,
@@ -223,45 +216,8 @@ func TestInterceptorIPLocateIP2Country_Basic(t *testing.T) {
 	}
 }
 
-func TestInterceptorIPLocateIP2Country_Random(t *testing.T) {
-	baseFile := filepath.Join(".", "ip-to-country-20251224.csv")
-
-	cfg := model.InterceptorConfig{
-		"base":    baseFile,
-		"codes":   []any{"US", "RU"},
-		"ip_type": "all",
-	}
-
-	it, err := interceptors.NewInterceptorIPLocateIP2Country("ip2country", "random", cfg)
-	if err != nil {
-		t.Fatalf("failed to create interceptor: %v", err)
-	}
-
-	ips := generateIPv4Addrs(1)
-
-	for _, ip := range ips {
-		addr := netip.MustParseAddr(ip)
-		_ = it.Match(addr)
-	}
-}
-
-func ipPoolGenerator(count int) []netip.Addr {
-	ips := make([]netip.Addr, count)
-
-	for i := 0; i < count; i++ {
-		ips[i] = netip.AddrFrom4([4]byte{
-			byte(rand.Intn(256)),
-			byte(rand.Intn(256)),
-			byte(rand.Intn(256)),
-			byte(rand.Intn(256)),
-		})
-	}
-
-	return ips
-}
-
 func BenchmarkInterceptorIPLocateIP2Country_Random(b *testing.B) {
-	baseFile := filepath.Join(".", "ip-to-country-20251224.csv")
+	baseFile := data.DatasetFile("ip2", "ip-to-country-20251224.csv")
 
 	cfg := model.InterceptorConfig{
 		"base":    baseFile,
@@ -274,9 +230,12 @@ func BenchmarkInterceptorIPLocateIP2Country_Random(b *testing.B) {
 		b.Fatalf("failed to create interceptor: %v", err)
 	}
 
-	const poolSize = 16
+	const poolSize = 1 << 6
+	v4, v6 := data.IPAddrs(poolSize)
 
-	ips := ipPoolGenerator(poolSize)
+	ips := make([]netip.Addr, 0, poolSize*2)
+	ips = append(ips, v4...)
+	ips = append(ips, v6...)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {

@@ -19,7 +19,7 @@ type InterceptorFilter struct {
 }
 
 func NewInterceptorFilter(log *slog.Logger, reg model.BuilderRegistry, cfgs []model.InterceptorConfig) (*InterceptorFilter, error) {
-	var interceptors []model.Interceptor
+	interceptors := make([]model.Interceptor, len(cfgs))
 
 	for i, cfg := range cfgs {
 		interceptor, err := reg.BuildInterceptor(cfg)
@@ -27,13 +27,17 @@ func NewInterceptorFilter(log *slog.Logger, reg model.BuilderRegistry, cfgs []mo
 			return nil, fmt.Errorf("cfg[%d]: failed to build interceptor: %w", i, err)
 		}
 
-		interceptors = append(interceptors, interceptor)
+		initLog := log
+		if tag := interceptor.Tag(); tag != "" {
+			initLog = initLog.With("tag", tag)
+		}
 
-		log.Info(
+		initLog.Info(
 			"interceptor registered",
 			"type", interceptor.Type(),
-			"tag", interceptor.Tag(),
 		)
+
+		interceptors[i] = interceptor
 	}
 
 	return &InterceptorFilter{interceptors: interceptors}, nil
@@ -47,20 +51,16 @@ func (ifr *InterceptorFilter) IsAllowed(ctx context.Context, ip netip.Addr) (boo
 			return false, err
 		}
 
-		allowed := inter.Match(ip)
-
-		ifr.log.Debug(
-			"interceptor checked IP",
-			"type", inter.Type(),
-			"tag", inter.Tag(),
-			"ip", ip.String(),
-			"allowed", allowed,
-		)
-
-		if !allowed {
-			return false, nil
+		if inter.Match(ip) {
+			ifr.log.Debug(
+				"interceptor matched IP",
+				"type", inter.Type(),
+				"tag", inter.Tag(),
+				"ip", ip.String(),
+			)
+			return true, nil
 		}
 	}
 
-	return true, nil
+	return false, nil
 }

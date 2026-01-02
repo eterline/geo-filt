@@ -18,9 +18,9 @@ import (
 
 // Config - plugin basic configuration
 type Config struct {
-	Enabled   bool                      `json:"enabled" yaml:"enabled"`
-	HeaderIP  bool                      `json:"header_ip" yaml:"header_ip"`
-	Response  model.ForbiddenConfig     `json:"response" yaml:"response"`
+	Enabled   bool                      `json:"enabled,omitempty" yaml:"enabled,omitempty"`
+	HeaderIP  bool                      `json:"header_ip,omitempty" yaml:"header_ip,omitempty"`
+	Response  model.ForbiddenConfig     `json:"response,omitempty" yaml:"response,omitempty"`
 	Intercept []model.InterceptorConfig `json:"intercept" yaml:"intercept"`
 }
 
@@ -53,10 +53,14 @@ func New(ctx context.Context, next http.Handler, config *Config, name string) (h
 
 	log.Info("staring plugin")
 
-	log.Info("setup ip extracting adapter", "lookup_header_ip", config.HeaderIP)
-	extractor := ipextract.NewIpExtractor(config.HeaderIP)
+	// ======
 
-	ipFilter, err := filter.NewInterceptorFilter(log, interceptors.SetupRegistry, config.Intercept)
+	ipFilter, err := filter.NewInterceptorFilter(
+		log,
+		interceptors.SetupRegistry,
+		config.Intercept,
+	)
+
 	if err != nil {
 		log.Error(
 			"failed to start interceptor filter",
@@ -65,19 +69,26 @@ func New(ctx context.Context, next http.Handler, config *Config, name string) (h
 		return nil, err
 	}
 
-	var forbiddWriter model.ResponseForbiddenWriter
-	switch config.Response.Type {
-	case "html":
-		forbiddWriter = forbidden.NewHTMLWriter(config.Response.Content)
-	default:
-		forbiddWriter = forbidden.NewPlainWriter(config.Response.Content)
-	}
+	ipExtract := ipextract.NewIpExtractor(config.HeaderIP)
+	log.Info(
+		"setup ip extracting adapter",
+		"lookup_header_ip", config.HeaderIP,
+	)
+
+	r := config.Response
+	forbiddWriter := forbidden.InitForbiddenWriter(r.Type, r.Content)
+	log.Info(
+		"setup response adapter",
+		"content", r.Content,
+	)
+
+	// ======
 
 	plugin := &GeoFiltPlugin{
 		name:          name,
 		enabled:       config.Enabled,
 		next:          next,
-		extract:       extractor,
+		extract:       ipExtract,
 		filter:        ipFilter,
 		forbiddWriter: forbiddWriter,
 		log:           log,
