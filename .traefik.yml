@@ -1,4 +1,4 @@
-displayName: GeoFilt
+displayName: geo-fil
 type: middleware
 
 import: github.com/eterline/geo-filt
@@ -9,13 +9,17 @@ bannerPath: ""
 
 testData:
   enabled: true
-  allowPrivate: true
-  headerBearer: false
-  codeFile: "/etc/traefik/plugins/github.com/eterline/geo-filt/locations.csv"
-  geoFile: 
-    - "/etc/traefik/plugins/github.com/eterline/geo-filt/subnets_ipv4.csv"
-    - "/etc/traefik/plugins/github.com/eterline/geo-filt/subnets_ipv6.csv"
-  tags:
-    - "ru"
-  defined:
-    - "10.192.0.0/24"
+  header_ip: false
+  response: 
+    content: "<h1>Forbidden: not allowed IP</h1>"
+  intercept:
+    - type: "local"
+      tag: "allow local IPs"
+    - type: "ipset"
+      tag: "allow some network IPs"
+      cidrs: ["1.1.0.0/16"]
+      addrs: ["8.8.8.8"]
+    - type: "ip2counrty"
+      tag: "allow russian IPs"
+      base: "./dataset/IPLocate/ip-to-country-20251224.csv"
+      codes: ["RU"]
