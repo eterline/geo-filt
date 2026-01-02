@@ -5,40 +5,62 @@
 package filter
 
 import (
+	"context"
 	"fmt"
+	"log/slog"
 	"net/netip"
-	"os"
+
+	"github.com/eterline/geo-filt/internal/model"
 )
 
-type MatchProvider interface {
-	Provider() string
-	Match(ip netip.Addr) bool
+type InterceptorFilter struct {
+	interceptors []model.Interceptor
+	log          *slog.Logger
 }
 
-type IpFilterService struct {
-	provideQueue []MatchProvider
-}
+func NewInterceptorFilter(log *slog.Logger, reg model.BuilderRegistry, cfgs []model.InterceptorConfig) (*InterceptorFilter, error) {
+	var interceptors []model.Interceptor
 
-func NewIpFilterService() *IpFilterService {
-	return &IpFilterService{
-		provideQueue: make([]MatchProvider, 0),
+	for i, cfg := range cfgs {
+		interceptor, err := reg.BuildInterceptor(cfg)
+		if err != nil {
+			return nil, fmt.Errorf("cfg[%d]: failed to build interceptor: %w", i, err)
+		}
+
+		interceptors = append(interceptors, interceptor)
+
+		log.Info(
+			"interceptor registered",
+			"type", interceptor.Type(),
+			"tag", interceptor.Tag(),
+		)
 	}
+
+	return &InterceptorFilter{interceptors: interceptors}, nil
 }
 
-// Add - adds MatchProvider object
-func (ifs *IpFilterService) Add(mp MatchProvider) {
-	if mp == nil {
-		panic("match provider is nil")
-	}
-	os.Stdout.WriteString(fmt.Sprintf("match provider - added matcher: %s", mp.Provider()))
-	ifs.provideQueue = append(ifs.provideQueue, mp)
-}
+func (ifr *InterceptorFilter) IsAllowed(ctx context.Context, ip netip.Addr) (bool, error) {
+	for _, inter := range ifr.interceptors {
 
-func (ifs *IpFilterService) IsAllowed(ip netip.Addr) bool {
-	for _, inst := range ifs.provideQueue {
-		if inst.Match(ip) {
-			return true
+		if err := ctx.Err(); err != nil {
+			ifr.log.Debug("context canceled or timeout", "ip", ip, "err", err)
+			return false, err
+		}
+
+		allowed := inter.Match(ip)
+
+		ifr.log.Debug(
+			"interceptor checked IP",
+			"type", inter.Type(),
+			"tag", inter.Tag(),
+			"ip", ip.String(),
+			"allowed", allowed,
+		)
+
+		if !allowed {
+			return false, nil
 		}
 	}
-	return false
+
+	return true, nil
 }

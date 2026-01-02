@@ -2,61 +2,13 @@
 // This file is part of geo-filt.
 // Licensed under the GNU AFFERO GENERAL PUBLIC LICENSE. See the LICENSE file for details.
 
-package ipscraper
+package ipextract
 
 import (
-	"net"
 	"net/http"
 	"net/netip"
 	"strings"
 )
-
-type IpExtractor struct {
-	headers bool
-}
-
-func NewIpExtractor(headers bool) *IpExtractor {
-	return &IpExtractor{
-		headers: headers,
-	}
-}
-
-// ExtractIP - parses IP from client or request headers
-func (is *IpExtractor) ExtractIP(r *http.Request) (netip.Addr, bool) {
-	if is.headers {
-		if ip, ok := headers(r); ok {
-			return ip, true
-		}
-	}
-	return remote(r)
-}
-
-func headers(r *http.Request) (netip.Addr, bool) {
-	if ip, ok := parseXRealIP(r.Header); ok {
-		return ip, false
-	}
-	if ip, ok := parseXForwardedFor(r.Header); ok {
-		return ip, false
-	}
-	if ip, ok := parseForwarded(r.Header); ok {
-		return ip, false
-	}
-	return netip.Addr{}, false
-}
-
-func remote(r *http.Request) (netip.Addr, bool) {
-	host, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err != nil {
-		return netip.Addr{}, false
-	}
-
-	ip, err := netip.ParseAddr(host)
-	if err != nil {
-		return netip.Addr{}, false
-	}
-
-	return ip, true
-}
 
 // parseXForwardedFor - parses 'X-Real-IP' Nginx reverse proxy header
 func parseXRealIP(h http.Header) (netip.Addr, bool) {
