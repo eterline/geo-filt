@@ -9,9 +9,9 @@ import (
 	"log/slog"
 	"net/http"
 
+	"github.com/eterline/geo-filt/internal/infra/forbidden"
 	"github.com/eterline/geo-filt/internal/infra/interceptors"
 	"github.com/eterline/geo-filt/internal/infra/ipextract"
-	"github.com/eterline/geo-filt/internal/interface/forbidden"
 	"github.com/eterline/geo-filt/internal/model"
 	"github.com/eterline/geo-filt/internal/service/filter"
 )
