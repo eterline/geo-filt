@@ -46,10 +46,19 @@ func NewInterceptorFilter(log *slog.Logger, reg model.BuilderRegistry, cfgs []mo
 		interceptors[i] = interceptor
 	}
 
+	log.Debug(
+		"interceptors register finish",
+		"count", len(interceptors),
+	)
+
 	return &InterceptorFilter{interceptors: interceptors}, nil
 }
 
 func (ifr *InterceptorFilter) IsAllowed(ctx context.Context, ip netip.Addr) (bool, error) {
+	if !ip.IsValid() {
+		return false, fmt.Errorf("invalid ip: %s", ip.String())
+	}
+
 	for _, inter := range ifr.interceptors {
 
 		if err := ctx.Err(); err != nil {
