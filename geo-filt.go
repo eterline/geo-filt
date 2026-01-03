@@ -100,12 +100,12 @@ func New(ctx context.Context, next http.Handler, config *Config, name string) (h
 }
 
 func (p *GeoFiltPlugin) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if p.next == nil {
+		p.next = http.NotFoundHandler()
+	}
+
 	if !p.enabled {
-		if p.next != nil {
-			p.next.ServeHTTP(w, r)
-			return
-		}
-		http.Error(w, "internal server error", http.StatusInternalServerError)
+		p.next.ServeHTTP(w, r)
 		return
 	}
 
@@ -124,12 +124,6 @@ func (p *GeoFiltPlugin) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if p.next != nil {
-		p.log.Debug("request allowed", "ip", clientIP)
-		p.next.ServeHTTP(w, r)
-		return
-	}
-
-	p.log.Error("next handler is nil")
-	http.Error(w, "internal server error", http.StatusInternalServerError)
+	p.log.Debug("request allowed", "ip", clientIP)
+	p.next.ServeHTTP(w, r)
 }
