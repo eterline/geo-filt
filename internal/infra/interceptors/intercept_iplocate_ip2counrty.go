@@ -51,6 +51,10 @@ func NewInterceptorIPLocateIP2Country(intType, intTag string, cfg model.Intercep
 		return nil, fmt.Errorf("ip2country pool ip init error: %w", err)
 	}
 
+	if pool == nil {
+		return nil, fmt.Errorf("ip2country pool is nil (no networks loaded)")
+	}
+
 	invert, _ := getCfgBool(cfg, "invert")
 
 	in := &InterceptorIPLocateIP2Country{
