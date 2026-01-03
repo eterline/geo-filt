@@ -1,54 +1,31 @@
 package interceptors
 
 import (
+	"encoding/csv"
 	"fmt"
+	"io"
 	"net/netip"
-	"os"
 
 	"github.com/eterline/geo-filt/internal/model"
-	"github.com/eterline/geo-filt/pkg/iplocate"
+	"github.com/eterline/geo-filt/pkg/mmapreader"
+	"github.com/eterline/geo-filt/pkg/netipuse"
 )
 
 func init() {
 	SetupRegistry.RegisterInterceptor("ip2counrty", NewInterceptorIPLocateIP2Country)
 }
 
-type allowedCodes map[model.CountryCode]struct{}
-
-func (ac allowedCodes) Add(code string) error {
-	cc, err := model.NewCountryCode(code)
-	if err == nil {
-		ac[cc] = struct{}{}
-	}
-	return err
-}
-
-func (ac allowedCodes) Contains(code string) bool {
-	_, ok := ac[model.CountryCode(code)]
-	return ok
-}
-
 type InterceptorIPLocateIP2Country struct {
 	*baseInterceptor
-	pool    *iplocate.CountryRegistry
-	allowed allowedCodes
-	invert  bool
+	pool   *netipuse.PoolIP
+	invert bool
 }
 
 func NewInterceptorIPLocateIP2Country(intType, intTag string, cfg model.InterceptorConfig) (model.Interceptor, error) {
-
-	invert, _ := getCfgBool(cfg, "invert")
-
-	in := &InterceptorIPLocateIP2Country{
-		baseInterceptor: newBaseInterceptor(intType, intTag, true),
-		allowed:         make(allowedCodes),
-		invert:          invert,
-	}
-
+	codeMap := allowedCodes{}
 	if codes, err := getCfgStringSlice(cfg, "codes"); err == nil {
 		for i, code := range codes {
-			err := in.allowed.Add(code)
-			if err != nil {
+			if err := codeMap.Add(code); err != nil {
 				return nil, fmt.Errorf("ip2country codes[%d]: invalid code %q: %w", i, code, err)
 			}
 		}
@@ -59,35 +36,84 @@ func NewInterceptorIPLocateIP2Country(intType, intTag string, cfg model.Intercep
 		return nil, fmt.Errorf("ip2country: missing base file: %w", err)
 	}
 
-	baseData, err := os.ReadFile(baseFileName)
-	if err != nil {
-		return nil, fmt.Errorf("ip2country: cannot read base file: %w", err)
-	}
-
 	ipType, err := getCfgStringEnum(cfg, "ip_type", []string{"v4", "v6", "all"})
 	if err != nil {
 		return nil, fmt.Errorf("ip2country: %w", err)
 	}
 
-	var opts []func(*iplocate.RegistryOptions)
-	switch ipType {
-	case "v4":
-		opts = append(opts, iplocate.OnlyV4())
-	case "v6":
-		opts = append(opts, iplocate.OnlyV6())
+	poolBuilder := &netipuse.PoolIPBuilder{}
+	if err := readCSVip2country(poolBuilder, baseFileName, codeMap, ipType); err != nil {
+		return nil, fmt.Errorf("ip2country read base error: %w", err)
 	}
 
-	in.pool, err = iplocate.NewContryRegistry(baseData, opts...)
+	pool, err := poolBuilder.PoolIP()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("ip2country pool ip init error: %w", err)
+	}
+
+	invert, _ := getCfgBool(cfg, "invert")
+
+	in := &InterceptorIPLocateIP2Country{
+		baseInterceptor: newBaseInterceptor(intType, intTag, true),
+		invert:          invert,
+		pool:            pool,
 	}
 
 	return in, nil
 }
 
 func (ila *InterceptorIPLocateIP2Country) Match(ip netip.Addr) bool {
-	if l, ok := ila.pool.Lookup(ip); ok {
-		return ila.allowed.Contains(l.CountryCode) && !ila.invert
+	return ila.pool.Contains(ip) && !ila.invert
+}
+
+func readCSVip2country(pool *netipuse.PoolIPBuilder, file string, codes allowedCodes, ipType string) error {
+	csvBase, err := mmapreader.NewFileReadCloser(file)
+	if err != nil {
+		return err
 	}
-	return false
+	defer csvBase.Close()
+
+	csvBaseRead := csv.NewReader(csvBase)
+	csvBaseRead.FieldsPerRecord = 4
+	first := true
+
+	var (
+		allowIPv4 = (ipType == "all") || (ipType == "v4")
+		allowIPv6 = (ipType == "all") || (ipType == "v6")
+	)
+
+	for {
+		record, err := csvBaseRead.Read()
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return err
+		}
+
+		if first {
+			first = false
+			if record[0] == "network" {
+				continue
+			}
+		}
+
+		if !codes.Contains(record[2]) {
+			continue
+		}
+
+		// parse CIDR
+		prefix, err := netip.ParsePrefix(record[0])
+		if err != nil {
+			continue
+		}
+
+		switch {
+		case prefix.Addr().Is4() && allowIPv4,
+			prefix.Addr().Is6() && allowIPv6:
+			pool.AddPrefix(prefix)
+		}
+	}
+
+	return nil
 }

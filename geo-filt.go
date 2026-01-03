@@ -99,7 +99,11 @@ func New(ctx context.Context, next http.Handler, config *Config, name string) (h
 
 func (p *GeoFiltPlugin) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if !p.enabled {
-		p.next.ServeHTTP(w, r)
+		if p.next != nil {
+			p.next.ServeHTTP(w, r)
+			return
+		}
+		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 
