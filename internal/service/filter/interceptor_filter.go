@@ -20,7 +20,7 @@ type InterceptorFilter struct {
 }
 
 func NewInterceptorFilter(log *slog.Logger, reg model.BuilderRegistry, cfgs []model.InterceptorConfig) (*InterceptorFilter, error) {
-	interceptors := make([]model.Interceptor, len(cfgs))
+	interceptors := make([]model.Interceptor, 0, len(cfgs))
 
 	for i, cfg := range cfgs {
 
@@ -30,6 +30,10 @@ func NewInterceptorFilter(log *slog.Logger, reg model.BuilderRegistry, cfgs []mo
 			return nil, fmt.Errorf("cfg[%d]: failed to build interceptor: %w", i, err)
 		}
 		initDuartion := time.Since(startInit)
+
+		if interceptor == nil {
+			return nil, fmt.Errorf("cfg[%d]: interceptor is nil", i)
+		}
 
 		initLog := log
 		if tag := interceptor.Tag(); tag != "" {
@@ -43,10 +47,10 @@ func NewInterceptorFilter(log *slog.Logger, reg model.BuilderRegistry, cfgs []mo
 			"initialization_time_ms", initDuartion.Milliseconds(),
 		)
 
-		interceptors[i] = interceptor
+		interceptors = append(interceptors, interceptor)
 	}
 
-	log.Debug(
+	log.Info(
 		"interceptors register finish",
 		"count", len(interceptors),
 	)
@@ -55,29 +59,27 @@ func NewInterceptorFilter(log *slog.Logger, reg model.BuilderRegistry, cfgs []mo
 }
 
 func (ifr *InterceptorFilter) IsAllowed(ctx context.Context, ip netip.Addr) (allowed bool, err error) {
-	defer func() {
-		if r := recover(); r != nil {
-			err = fmt.Errorf("panic in intercept: %v", r)
-			allowed = false
-		}
-	}()
-
 	if !ip.IsValid() {
 		return false, fmt.Errorf("invalid ip: %s", ip.String())
 	}
 
-	for i, inter := range ifr.interceptors {
-
-		if inter == nil {
-			return false, fmt.Errorf("interceptor[%d] is nil: %s", i, inter.Tag())
-		}
+	for _, inter := range ifr.interceptors {
 
 		if err := ctx.Err(); err != nil {
 			ifr.log.Debug("context canceled or timeout", "ip", ip, "err", err)
 			return false, err
 		}
 
-		if inter.Match(ip) {
+		if func() (ok bool) {
+			defer func() {
+				if r := recover(); r != nil {
+					err = fmt.Errorf("panic in interceptor '%s': %v", inter.Tag(), r)
+					ok = false
+				}
+			}()
+
+			return inter.Match(ip)
+		}() {
 			ifr.log.Debug(
 				"interceptor matched IP",
 				"type", inter.Type(),
