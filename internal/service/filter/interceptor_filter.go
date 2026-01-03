@@ -54,7 +54,14 @@ func NewInterceptorFilter(log *slog.Logger, reg model.BuilderRegistry, cfgs []mo
 	return &InterceptorFilter{interceptors: interceptors}, nil
 }
 
-func (ifr *InterceptorFilter) IsAllowed(ctx context.Context, ip netip.Addr) (bool, error) {
+func (ifr *InterceptorFilter) IsAllowed(ctx context.Context, ip netip.Addr) (allowed bool, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("panic in intercept: %v", r)
+			allowed = false
+		}
+	}()
+
 	if !ip.IsValid() {
 		return false, fmt.Errorf("invalid ip: %s", ip.String())
 	}
