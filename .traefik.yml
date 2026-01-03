@@ -10,6 +10,7 @@ bannerPath: ""
 testData:
   enabled: true
   header_ip: false
+  log_level: "info"
   response: 
     content: "<h1>Forbidden: not allowed IP</h1>"
   interceptors:

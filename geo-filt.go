@@ -12,6 +12,7 @@ import (
 	"github.com/eterline/geo-filt/internal/infra/forbidden"
 	"github.com/eterline/geo-filt/internal/infra/interceptors"
 	"github.com/eterline/geo-filt/internal/infra/ipextract"
+	"github.com/eterline/geo-filt/internal/infra/log"
 	"github.com/eterline/geo-filt/internal/model"
 	"github.com/eterline/geo-filt/internal/service/filter"
 )
@@ -20,6 +21,7 @@ import (
 type Config struct {
 	Enabled      bool                      `json:"enabled,omitempty" yaml:"enabled,omitempty"`
 	HeaderIP     bool                      `json:"header_ip,omitempty" yaml:"header_ip,omitempty"`
+	LogLevel     string                    `json:"log_level,omitempty" yaml:"log_level,omitempty"`
 	Response     model.ForbiddenConfig     `json:"response,omitempty" yaml:"response,omitempty"`
 	Interceptors []model.InterceptorConfig `json:"interceptors" yaml:"interceptors"`
 }
@@ -46,7 +48,7 @@ type GeoFiltPlugin struct {
 // ===========================
 
 func New(ctx context.Context, next http.Handler, config *Config, name string) (http.Handler, error) {
-	log := slog.With(
+	log := log.NewLogger(config.LogLevel, false).With(
 		"plugin", "geo-filt",
 		"plugin_name", name,
 	)
