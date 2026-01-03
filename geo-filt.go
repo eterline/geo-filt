@@ -62,6 +62,21 @@ func New(ctx context.Context, next http.Handler, config *Config, name string) (h
 
 	// ======
 
+	ipExtract := ipextract.NewIpExtractor(config.HeaderIP)
+	log.Info(
+		"setup ip extracting adapter",
+		"lookup_header_ip", config.HeaderIP,
+	)
+
+	r := config.Response
+	forbiddWriter := forbidden.InitForbiddenWriter(r.Type, r.Content)
+	log.Info(
+		"setup response adapter",
+		"content", r.Content,
+	)
+
+	// ======
+
 	ipFilter, err := filter.NewInterceptorFilter(
 		log,
 		interceptors.SetupRegistry,
@@ -75,19 +90,6 @@ func New(ctx context.Context, next http.Handler, config *Config, name string) (h
 		)
 		return nil, err
 	}
-
-	ipExtract := ipextract.NewIpExtractor(config.HeaderIP)
-	log.Info(
-		"setup ip extracting adapter",
-		"lookup_header_ip", config.HeaderIP,
-	)
-
-	r := config.Response
-	forbiddWriter := forbidden.InitForbiddenWriter(r.Type, r.Content)
-	log.Info(
-		"setup response adapter",
-		"content", r.Content,
-	)
 
 	// ======
 

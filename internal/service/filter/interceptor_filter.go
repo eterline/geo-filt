@@ -66,7 +66,11 @@ func (ifr *InterceptorFilter) IsAllowed(ctx context.Context, ip netip.Addr) (all
 		return false, fmt.Errorf("invalid ip: %s", ip.String())
 	}
 
-	for _, inter := range ifr.interceptors {
+	for i, inter := range ifr.interceptors {
+
+		if inter == nil {
+			return false, fmt.Errorf("interceptor[%d] is nil: %s", i, inter.Tag())
+		}
 
 		if err := ctx.Err(); err != nil {
 			ifr.log.Debug("context canceled or timeout", "ip", ip, "err", err)
