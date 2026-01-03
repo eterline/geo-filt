@@ -118,6 +118,12 @@ func (p *GeoFiltPlugin) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	p.log.Debug("request allowed", "ip", clientIP)
-	p.next.ServeHTTP(w, r)
+	if p.next != nil {
+		p.log.Debug("request allowed", "ip", clientIP)
+		p.next.ServeHTTP(w, r)
+		return
+	}
+
+	p.log.Error("next handler is nil")
+	http.Error(w, "internal server error", http.StatusInternalServerError)
 }
