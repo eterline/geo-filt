@@ -14,7 +14,8 @@ func init() {
 
 type InterceptorIPSet struct {
 	*baseInterceptor
-	pool *netipuse.PoolIP
+	pool   *netipuse.PoolIP
+	invert bool
 }
 
 func NewInterceptorIPSet(intType, intTag string, cfg model.InterceptorConfig) (model.Interceptor, error) {
@@ -45,14 +46,17 @@ func NewInterceptorIPSet(intType, intTag string, cfg model.InterceptorConfig) (m
 		return nil, fmt.Errorf("ipset build failed: %w", err)
 	}
 
+	invert, _ := getCfgBool(cfg, "invert")
+
 	in := &InterceptorIPSet{
 		baseInterceptor: newBaseInterceptor(intType, intTag, true),
 		pool:            pool,
+		invert:          invert,
 	}
 
 	return in, nil
 }
 
 func (ipset *InterceptorIPSet) Match(ip netip.Addr) bool {
-	return ipset.pool.Contains(ip)
+	return ipset.pool.Contains(ip) && !ipset.invert
 }

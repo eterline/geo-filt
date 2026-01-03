@@ -18,16 +18,16 @@ import (
 
 // Config - plugin basic configuration
 type Config struct {
-	Enabled   bool                      `json:"enabled,omitempty" yaml:"enabled,omitempty"`
-	HeaderIP  bool                      `json:"header_ip,omitempty" yaml:"header_ip,omitempty"`
-	Response  model.ForbiddenConfig     `json:"response,omitempty" yaml:"response,omitempty"`
-	Intercept []model.InterceptorConfig `json:"intercept" yaml:"intercept"`
+	Enabled      bool                      `json:"enabled,omitempty" yaml:"enabled,omitempty"`
+	HeaderIP     bool                      `json:"header_ip,omitempty" yaml:"header_ip,omitempty"`
+	Response     model.ForbiddenConfig     `json:"response,omitempty" yaml:"response,omitempty"`
+	Interceptors []model.InterceptorConfig `json:"interceptors" yaml:"interceptors"`
 }
 
 func CreateConfig() *Config {
 	return &Config{
-		Enabled:   false,
-		Intercept: make([]model.InterceptorConfig, 0),
+		Enabled:      false,
+		Interceptors: make([]model.InterceptorConfig, 0),
 	}
 }
 
@@ -58,7 +58,7 @@ func New(ctx context.Context, next http.Handler, config *Config, name string) (h
 	ipFilter, err := filter.NewInterceptorFilter(
 		log,
 		interceptors.SetupRegistry,
-		config.Intercept,
+		config.Interceptors,
 	)
 
 	if err != nil {

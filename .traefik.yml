@@ -12,14 +12,17 @@ testData:
   header_ip: false
   response: 
     content: "<h1>Forbidden: not allowed IP</h1>"
-  intercept:
+  interceptors:
     - type: "local"
       tag: "allow local IPs"
     - type: "ipset"
       tag: "allow some network IPs"
+      invert: false # true|false
+      ip_type: "v4" # v4|v6|all
       cidrs: ["1.1.0.0/16"]
       addrs: ["8.8.8.8"]
     - type: "ip2counrty"
       tag: "allow russian IPs"
+      invert: false # true|false
       base: "./dataset/IPLocate/ip-to-country-20251224.csv"
       codes: ["RU"]

@@ -13,41 +13,60 @@ func init() {
 	SetupRegistry.RegisterInterceptor("ip2counrty", NewInterceptorIPLocateIP2Country)
 }
 
+type allowedCodes map[model.CountryCode]struct{}
+
+func (ac allowedCodes) Add(code string) error {
+	cc, err := model.NewCountryCode(code)
+	if err == nil {
+		ac[cc] = struct{}{}
+	}
+	return err
+}
+
+func (ac allowedCodes) Contains(code string) bool {
+	_, ok := ac[model.CountryCode(code)]
+	return ok
+}
+
 type InterceptorIPLocateIP2Country struct {
 	*baseInterceptor
 	pool    *iplocate.CountryRegistry
-	allowed map[model.CountryCode]struct{}
+	allowed allowedCodes
+	invert  bool
 }
 
 func NewInterceptorIPLocateIP2Country(intType, intTag string, cfg model.InterceptorConfig) (model.Interceptor, error) {
-	baseFileName, err := getCfgString(cfg, "base")
-	if err != nil || baseFileName == "" {
-		return nil, fmt.Errorf("ip2country: missing base file: %w", err)
-	}
+
+	invert, _ := getCfgBool(cfg, "invert")
 
 	in := &InterceptorIPLocateIP2Country{
 		baseInterceptor: newBaseInterceptor(intType, intTag, true),
-		allowed:         make(map[model.CountryCode]struct{}),
+		allowed:         make(allowedCodes),
+		invert:          invert,
 	}
 
 	if codes, err := getCfgStringSlice(cfg, "codes"); err == nil {
 		for i, code := range codes {
-			c, err := model.NewCountryCode(code)
+			err := in.allowed.Add(code)
 			if err != nil {
 				return nil, fmt.Errorf("ip2country codes[%d]: invalid code %q: %w", i, code, err)
 			}
-			in.allowed[c] = struct{}{}
 		}
 	}
 
-	ipType, err := getCfgStringEnum(cfg, "ip_type", []string{"v4", "v6", "all"})
+	baseFileName, err := getCfgString(cfg, "base")
 	if err != nil {
-		return nil, fmt.Errorf("ip2country: %w", err)
+		return nil, fmt.Errorf("ip2country: missing base file: %w", err)
 	}
 
 	baseData, err := os.ReadFile(baseFileName)
 	if err != nil {
 		return nil, fmt.Errorf("ip2country: cannot read base file: %w", err)
+	}
+
+	ipType, err := getCfgStringEnum(cfg, "ip_type", []string{"v4", "v6", "all"})
+	if err != nil {
+		return nil, fmt.Errorf("ip2country: %w", err)
 	}
 
 	var opts []func(*iplocate.RegistryOptions)
@@ -67,9 +86,8 @@ func NewInterceptorIPLocateIP2Country(intType, intTag string, cfg model.Intercep
 }
 
 func (ila *InterceptorIPLocateIP2Country) Match(ip netip.Addr) bool {
-	if look, ok := ila.pool.Lookup(ip); ok {
-		_, ok := ila.allowed[model.CountryCode(look.CountryCode)]
-		return ok
+	if l, ok := ila.pool.Lookup(ip); ok {
+		return ila.allowed.Contains(l.CountryCode) && !ila.invert
 	}
 	return false
 }
