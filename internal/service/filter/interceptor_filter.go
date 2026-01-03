@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/netip"
+	"time"
 
 	"github.com/eterline/geo-filt/internal/model"
 )
@@ -22,6 +23,8 @@ func NewInterceptorFilter(log *slog.Logger, reg model.BuilderRegistry, cfgs []mo
 	interceptors := make([]model.Interceptor, len(cfgs))
 
 	for i, cfg := range cfgs {
+		startInit := time.Now()
+
 		interceptor, err := reg.BuildInterceptor(cfg)
 		if err != nil {
 			return nil, fmt.Errorf("cfg[%d]: failed to build interceptor: %w", i, err)
@@ -35,6 +38,7 @@ func NewInterceptorFilter(log *slog.Logger, reg model.BuilderRegistry, cfgs []mo
 		initLog.Info(
 			"interceptor registered",
 			"type", interceptor.Type(),
+			"initialization_time_ms", time.Since(startInit).Milliseconds(),
 		)
 
 		interceptors[i] = interceptor
