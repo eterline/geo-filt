@@ -27,12 +27,12 @@ func NewInterceptorFilter(log *slog.Logger, reg model.BuilderRegistry, cfgs []mo
 		startInit := time.Now()
 		interceptor, err := reg.BuildInterceptor(cfg)
 		if err != nil {
-			return nil, fmt.Errorf("cfg[%d]: failed to build interceptor: %w", i, err)
+			return nil, fmt.Errorf("interceptors[%d]: failed to build interceptor: %w", i, err)
 		}
 		initDuartion := time.Since(startInit)
 
 		if interceptor == nil {
-			return nil, fmt.Errorf("cfg[%d]: interceptor is nil", i)
+			return nil, fmt.Errorf("interceptors[%d]: interceptor is nil", i)
 		}
 
 		initLog := log
@@ -42,6 +42,7 @@ func NewInterceptorFilter(log *slog.Logger, reg model.BuilderRegistry, cfgs []mo
 
 		initLog.Info(
 			"interceptor registered",
+			"queue", i,
 			"type", interceptor.Type(),
 			"initialization_time", initDuartion.String(),
 			"initialization_time_ms", initDuartion.Milliseconds(),

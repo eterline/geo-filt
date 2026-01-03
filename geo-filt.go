@@ -31,7 +31,7 @@ func CreateConfig() *Config {
 	return &Config{
 		Enabled:      false,
 		HeaderIP:     false,
-		LogLevel:     "info",
+		LogLevel:     "",
 		Response:     model.ForbiddenConfig{},
 		Interceptors: make([]model.InterceptorConfig, 0),
 	}
