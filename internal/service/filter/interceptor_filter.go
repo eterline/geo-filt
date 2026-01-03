@@ -55,7 +55,7 @@ func NewInterceptorFilter(log *slog.Logger, reg model.BuilderRegistry, cfgs []mo
 		"count", len(interceptors),
 	)
 
-	return &InterceptorFilter{interceptors: interceptors}, nil
+	return &InterceptorFilter{interceptors: interceptors, log: log}, nil
 }
 
 func (ifr *InterceptorFilter) IsAllowed(ctx context.Context, ip netip.Addr) (allowed bool, err error) {
@@ -70,16 +70,7 @@ func (ifr *InterceptorFilter) IsAllowed(ctx context.Context, ip netip.Addr) (all
 			return false, err
 		}
 
-		if func() (ok bool) {
-			defer func() {
-				if r := recover(); r != nil {
-					err = fmt.Errorf("panic in interceptor '%s': %v", inter.Tag(), r)
-					ok = false
-				}
-			}()
-
-			return inter.Match(ip)
-		}() {
+		if inter.Match(ip) {
 			ifr.log.Debug(
 				"interceptor matched IP",
 				"type", inter.Type(),
