@@ -6,6 +6,7 @@ package geo_filt
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"net/http"
 
@@ -127,6 +128,17 @@ func (p *GeoFiltPlugin) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	allowed, err := p.filter.IsAllowed(r.Context(), clientIP)
 	if err != nil {
+		if errors.Is(err, context.Canceled) ||
+			errors.Is(err, context.DeadlineExceeded) {
+
+			p.log.Debug(
+				"request context canceled",
+				"ip", clientIP,
+				"err", err,
+			)
+			return
+		}
+
 		p.log.Error("error checking IP filter", "ip", clientIP, "error", err)
 		p.forbiddWriter.ResponseForbidden(w)
 		return
