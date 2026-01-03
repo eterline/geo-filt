@@ -17,7 +17,7 @@ import (
 	"github.com/eterline/geo-filt/internal/service/filter"
 )
 
-// Config - plugin basic configuration
+// Config the plugin configuration.
 type Config struct {
 	Enabled      bool                      `json:"enabled,omitempty" yaml:"enabled,omitempty"`
 	HeaderIP     bool                      `json:"header_ip,omitempty" yaml:"header_ip,omitempty"`
@@ -26,9 +26,13 @@ type Config struct {
 	Interceptors []model.InterceptorConfig `json:"interceptors" yaml:"interceptors"`
 }
 
+// CreateConfig creates the default plugin configuration.
 func CreateConfig() *Config {
 	return &Config{
 		Enabled:      false,
+		HeaderIP:     false,
+		LogLevel:     "info",
+		Response:     model.ForbiddenConfig{},
 		Interceptors: make([]model.InterceptorConfig, 0),
 	}
 }
@@ -47,6 +51,7 @@ type GeoFiltPlugin struct {
 
 // ===========================
 
+// New created a new plugin.
 func New(ctx context.Context, next http.Handler, config *Config, name string) (http.Handler, error) {
 	log := log.NewLogger(config.LogLevel, false).With(
 		"plugin", "geo-filt",
@@ -101,19 +106,26 @@ func New(ctx context.Context, next http.Handler, config *Config, name string) (h
 
 func (p *GeoFiltPlugin) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if p.next == nil {
+		p.log.Warn("nil next handler")
 		p.next = http.NotFoundHandler()
 	}
 
 	if !p.enabled {
+		p.log.Debug("plugin disabled, skip filtering", "ip", r.RemoteAddr)
 		p.next.ServeHTTP(w, r)
 		return
 	}
 
-	clientIP := p.extract.ExtractIP(r)
+	clientIP, err := p.extract.ExtractIP(r)
+	if err != nil {
+		p.log.Error("error exctract request IP", "error", err)
+		p.forbiddWriter.ResponseForbidden(w)
+		return
+	}
 
 	allowed, err := p.filter.IsAllowed(r.Context(), clientIP)
 	if err != nil {
-		p.log.Error("error checking IP filter", "ip", clientIP, "err", err)
+		p.log.Error("error checking IP filter", "ip", clientIP, "error", err)
 		p.forbiddWriter.ResponseForbidden(w)
 		return
 	}

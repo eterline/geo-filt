@@ -20,10 +20,10 @@ func NewIpExtractor(headers bool) *IpExtractor {
 }
 
 // ExtractIP - parses IP from client or request headers
-func (is *IpExtractor) ExtractIP(r *http.Request) netip.Addr {
+func (is *IpExtractor) ExtractIP(r *http.Request) (netip.Addr, error) {
 	if is.headers {
 		if ip, ok := headers(r); ok {
-			return ip
+			return ip, nil
 		}
 	}
 	return remote(r)
@@ -42,7 +42,10 @@ func headers(r *http.Request) (netip.Addr, bool) {
 	return netip.Addr{}, false
 }
 
-func remote(r *http.Request) netip.Addr {
-	addrPort, _ := netip.ParseAddrPort(r.RemoteAddr)
-	return addrPort.Addr()
+func remote(r *http.Request) (netip.Addr, error) {
+	addrPort, err := netip.ParseAddrPort(r.RemoteAddr)
+	if err != nil {
+		return netip.Addr{}, err
+	}
+	return addrPort.Addr(), nil
 }

@@ -17,7 +17,7 @@ type IPFilter interface {
 }
 
 type ExtractorIP interface {
-	ExtractIP(r *http.Request) netip.Addr
+	ExtractIP(r *http.Request) (netip.Addr, error)
 }
 
 type BuilderRegistry interface {
