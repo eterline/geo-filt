@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net/netip"
-	"runtime/debug"
 	"time"
 
 	"github.com/eterline/geo-filt/internal/model"
@@ -58,13 +57,6 @@ func NewInterceptorFilter(log *slog.Logger, reg model.BuilderRegistry, cfgs []mo
 func (ifr *InterceptorFilter) IsAllowed(ctx context.Context, ip netip.Addr) (allowed bool, err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			ifr.log.Error(
-				"panic in interceptor",
-				"panic", r,
-				"stack", string(debug.Stack()),
-				"ip", ip.String(),
-			)
-
 			err = fmt.Errorf("panic in intercept: %v", r)
 			allowed = false
 		}
