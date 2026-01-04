@@ -13,17 +13,9 @@ var (
 )
 
 func init() {
-	ForbiddenWriters.Register("text", func(content string) (model.ResponseForbiddenWriter, error) {
-		return NewPlainWriter(content)
-	})
-
-	ForbiddenWriters.Register("html", func(content string) (model.ResponseForbiddenWriter, error) {
-		return NewHTMLWriter(content)
-	})
-
-	ForbiddenWriters.Register("default", func(_ string) (model.ResponseForbiddenWriter, error) {
-		return newForbiddenWriter(nil), nil
-	})
+	ForbiddenWriters.Register("default", NewPlainWriter)
+	ForbiddenWriters.Register("text", NewPlainWriter)
+	ForbiddenWriters.Register("html", NewHTMLWriter)
 }
 
 // =============
@@ -51,7 +43,7 @@ type PlainWriter struct {
 	*forbiddenWriter
 }
 
-func NewPlainWriter(text string) (*PlainWriter, error) {
+func NewPlainWriter(text string) (model.ResponseForbiddenWriter, error) {
 	if text == "" {
 		return nil, errors.New("text content can't be empty")
 	}
@@ -69,7 +61,7 @@ type HTMLWriter struct {
 
 // =============
 
-func NewHTMLWriter(file string) (*HTMLWriter, error) {
+func NewHTMLWriter(file string) (model.ResponseForbiddenWriter, error) {
 	data, err := os.ReadFile(file)
 	if err != nil {
 		return nil, err
