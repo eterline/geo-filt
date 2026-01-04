@@ -87,7 +87,7 @@ func New(ctx context.Context, next http.Handler, config *Config, name string) (h
 		log.Error("error setup forbidden response adapter", "error", err)
 		return nil, err
 	}
-	log.Info("setup forbidden response adapter", "content", config.Response.Content)
+	log.Info("setup forbidden response adapter", "type", config.Response.Type)
 
 	// Initialize IP filter with configured interceptors
 	ipFilter, err := filter.NewInterceptorFilter(log, interceptors.SetupRegistry, config.Interceptors)
