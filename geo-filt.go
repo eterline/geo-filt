@@ -73,7 +73,7 @@ func New(ctx context.Context, next http.Handler, config *Config, name string) (h
 
 	// Ensure `next` handler is not nil
 	if next == nil {
-		log.Warn("nil next handler, using NotFoundHandler")
+		log.Warn("nil next handler, using NotFoundHandler()")
 		next = http.NotFoundHandler()
 	}
 
@@ -82,7 +82,11 @@ func New(ctx context.Context, next http.Handler, config *Config, name string) (h
 	log.Info("setup IP extractor", "lookup_header_ip", config.HeaderIP)
 
 	// Create forbidden response writer
-	forbiddWriter := forbidden.InitForbiddenWriter(config.Response.Type, config.Response.Content)
+	forbiddWriter, err := forbidden.InitForbiddenWriter(config.Response.Type, config.Response.Content)
+	if err != nil {
+		log.Error("error setup forbidden response adapter", "error", err)
+		return nil, err
+	}
 	log.Info("setup forbidden response adapter", "content", config.Response.Content)
 
 	// Initialize IP filter with configured interceptors

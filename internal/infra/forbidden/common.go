@@ -1,71 +1,83 @@
 package forbidden
 
 import (
+	"errors"
 	"net/http"
 	"os"
 
 	"github.com/eterline/geo-filt/internal/model"
 )
 
-func InitForbiddenWriter(t, content string) model.ResponseForbiddenWriter {
-	var fWr model.ResponseForbiddenWriter
+var (
+	ForbiddenWriters = NewForbiddenWriterRegistry()
+)
 
-	switch t {
-	case "html":
-		fWr = NewHTMLWriter(content)
-	default:
-		fWr = NewPlainWriter(content)
-	}
+func init() {
+	ForbiddenWriters.Register("text", func(content string) (model.ResponseForbiddenWriter, error) {
+		return NewPlainWriter(content)
+	})
 
-	return fWr
+	ForbiddenWriters.Register("html", func(content string) (model.ResponseForbiddenWriter, error) {
+		return NewHTMLWriter(content)
+	})
+
+	ForbiddenWriters.Register("default", func(_ string) (model.ResponseForbiddenWriter, error) {
+		return newForbiddenWriter(nil), nil
+	})
 }
+
+// =============
+
+type forbiddenWriter struct {
+	content []byte
+}
+
+func newForbiddenWriter(p []byte) *forbiddenWriter {
+	if len(p) == 0 {
+		p = []byte("Forbidden: ip not allowed!")
+	}
+	return &forbiddenWriter{content: p}
+}
+
+func (fb *forbiddenWriter) ResponseForbidden(w http.ResponseWriter) error {
+	w.WriteHeader(http.StatusForbidden)
+	_, err := w.Write(fb.content)
+	return err
+}
+
+// =============
 
 type PlainWriter struct {
-	Text []byte
+	*forbiddenWriter
 }
 
-func NewPlainWriter(text string) *PlainWriter {
+func NewPlainWriter(text string) (*PlainWriter, error) {
 	if text == "" {
-		text = "Forbidden - ip not allowed"
+		return nil, errors.New("text content can't be empty")
 	}
-	return &PlainWriter{Text: []byte(text)}
-}
 
-func (p *PlainWriter) ResponseForbidden(w http.ResponseWriter) {
-	w.WriteHeader(http.StatusForbidden)
-	w.Write(p.Text)
+	w := &PlainWriter{
+		forbiddenWriter: newForbiddenWriter([]byte(text)),
+	}
+
+	return w, nil
 }
 
 type HTMLWriter struct {
-	FilePath string
-	content  []byte
+	*forbiddenWriter
 }
 
-func NewHTMLWriter(filePath string) *HTMLWriter {
-	return &HTMLWriter{
-		FilePath: filePath,
-	}
-}
+// =============
 
-func (h *HTMLWriter) loadContent() error {
-	if h.content != nil {
-		return nil
-	}
-	data, err := os.ReadFile(h.FilePath)
+func NewHTMLWriter(file string) (*HTMLWriter, error) {
+	data, err := os.ReadFile(file)
 	if err != nil {
-		return err
-	}
-	h.content = data
-	return nil
-}
-
-func (h *HTMLWriter) ResponseForbidden(w http.ResponseWriter) {
-	w.WriteHeader(http.StatusForbidden)
-
-	if err := h.loadContent(); err != nil {
-		w.Write([]byte("Forbidden - ip not allowed"))
-		return
+		return nil, err
 	}
 
-	_, _ = w.Write(h.content)
+	w := &HTMLWriter{
+		forbiddenWriter: newForbiddenWriter(data),
+	}
+
+	return w, err
 }

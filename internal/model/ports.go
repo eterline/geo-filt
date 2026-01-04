@@ -25,5 +25,5 @@ type BuilderRegistry interface {
 }
 
 type ResponseForbiddenWriter interface {
-	ResponseForbidden(w http.ResponseWriter)
+	ResponseForbidden(w http.ResponseWriter) error
 }
