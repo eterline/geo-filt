@@ -1,0 +1,3 @@
+# github.com/eterline/ipcsv2base v0.1.1
+## explicit; go 1.25.5
+github.com/eterline/ipcsv2base

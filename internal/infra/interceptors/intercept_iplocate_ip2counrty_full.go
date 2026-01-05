@@ -28,6 +28,14 @@ func (ac allowedCodes) Contains(code string) bool {
 	return ok
 }
 
+func (ac allowedCodes) Slice() []string {
+	s := make([]string, 0, len(ac))
+	for code := range ac {
+		s = append(s, code.String())
+	}
+	return s
+}
+
 type InterceptorIPLocateIP2CountryFull struct {
 	*baseInterceptor
 	pool    *iplocate.CountryRegistry

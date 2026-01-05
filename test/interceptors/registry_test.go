@@ -81,3 +81,35 @@ func BenchmarkBuildInterceptor(b *testing.B) {
 		}
 	}
 }
+
+func BenchmarkBuildInterceptorEterline(b *testing.B) {
+	cfgs := []model.InterceptorConfig{
+		{
+			"type": "local",
+			"tag":  "allow local subnets",
+		},
+		{
+			"type":  "ipset",
+			"tag":   "allow some VPS IPs",
+			"addrs": []string{"77.110.104.146", "46.32.185.197"},
+		},
+		{
+			"type":    "eterline_ip2counrty",
+			"tag":     "allow IPs from",
+			"ip_type": "all",
+			"base":    filepath.Join("..", "data", "eterline", "country2ip.bin"),
+			"codes":   []string{"RU"},
+		},
+	}
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		for i, cfg := range cfgs {
+			_, err := interceptors.SetupRegistry.BuildInterceptor(cfg)
+			if err != nil {
+				b.Fatalf("cfg[%d] error: %v", i, err)
+			}
+		}
+	}
+}
