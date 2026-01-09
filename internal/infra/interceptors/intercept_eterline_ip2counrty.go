@@ -20,7 +20,7 @@ type InterceptorEterlineIP2Country struct {
 	invert bool
 }
 
-func NewInterceptorEterlineIP2Country(intType, intTag string, cfg model.InterceptorConfig) (model.Interceptor, error) {
+func NewInterceptorEterlineIP2Country(intType, intTag string, cfg model.InterceptorConfig, _ model.InterceptLogger) (model.Interceptor, error) {
 	codeMap := allowedCodes{}
 	if codes, err := getCfgStringSlice(cfg, "codes"); err == nil {
 		for i, code := range codes {
@@ -71,7 +71,7 @@ func NewInterceptorEterlineIP2Country(intType, intTag string, cfg model.Intercep
 	invert, _ := getCfgBool(cfg, "invert")
 
 	in := &InterceptorEterlineIP2Country{
-		baseInterceptor: newBaseInterceptor(intType, intTag, true),
+		baseInterceptor: newBaseInterceptor(intType, intTag, true, nil),
 		invert:          invert,
 		pool:            pool,
 	}

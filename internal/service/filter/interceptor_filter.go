@@ -11,6 +11,7 @@ import (
 	"net/netip"
 	"time"
 
+	"github.com/eterline/geo-filt/internal/infra/log"
 	"github.com/eterline/geo-filt/internal/model"
 )
 
@@ -19,13 +20,13 @@ type InterceptorFilter struct {
 	log          *slog.Logger
 }
 
-func NewInterceptorFilter(log *slog.Logger, reg model.BuilderRegistry, cfgs []model.InterceptorConfig) (*InterceptorFilter, error) {
+func NewInterceptorFilter(logger *slog.Logger, reg model.BuilderRegistry, cfgs []model.InterceptorConfig) (*InterceptorFilter, error) {
 	interceptors := make([]model.Interceptor, 0, len(cfgs))
 
 	for i, cfg := range cfgs {
-
 		startInit := time.Now()
-		interceptor, err := reg.BuildInterceptor(cfg)
+
+		interceptor, err := reg.BuildInterceptor(cfg, log.NewInterceptLogger(logger))
 		if err != nil {
 			return nil, fmt.Errorf("interceptors[%d]: failed to build interceptor: %w", i, err)
 		}
@@ -35,7 +36,7 @@ func NewInterceptorFilter(log *slog.Logger, reg model.BuilderRegistry, cfgs []mo
 			return nil, fmt.Errorf("interceptors[%d]: interceptor is nil", i)
 		}
 
-		initLog := log
+		initLog := logger
 		if tag := interceptor.Tag(); tag != "" {
 			initLog = initLog.With("tag", tag)
 		}
@@ -51,12 +52,12 @@ func NewInterceptorFilter(log *slog.Logger, reg model.BuilderRegistry, cfgs []mo
 		interceptors = append(interceptors, interceptor)
 	}
 
-	log.Info(
+	logger.Info(
 		"interceptors register finish",
 		"count", len(interceptors),
 	)
 
-	return &InterceptorFilter{interceptors: interceptors, log: log}, nil
+	return &InterceptorFilter{interceptors: interceptors, log: logger}, nil
 }
 
 func (ifr *InterceptorFilter) IsAllowed(ctx context.Context, ip netip.Addr) (allowed bool, err error) {

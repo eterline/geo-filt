@@ -36,3 +36,18 @@ type Interceptor interface {
 	Type() string
 	Tag() string
 }
+
+type InterceptLoggerIniter interface {
+	With(args ...any) InterceptLogger
+}
+
+type InterceptLogger interface {
+	Debug(msg string, args ...any)
+	Error(msg string, args ...any)
+	Info(msg string, args ...any)
+	Warn(msg string, args ...any)
+}
+
+func NewInterceptLoggerIniter(i InterceptLoggerIniter) InterceptLogger {
+	return i.With()
+}

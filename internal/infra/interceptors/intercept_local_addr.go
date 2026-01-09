@@ -14,9 +14,9 @@ type InterceptorLocalAddr struct {
 	*baseInterceptor
 }
 
-func NewInterceptorLocalAddr(intType, intTag string, cfg model.InterceptorConfig) (model.Interceptor, error) {
+func NewInterceptorLocalAddr(intType, intTag string, cfg model.InterceptorConfig, _ model.InterceptLogger) (model.Interceptor, error) {
 	in := &InterceptorLocalAddr{
-		newBaseInterceptor(intType, intTag, true),
+		newBaseInterceptor(intType, intTag, true, nil),
 	}
 	return in, nil
 }

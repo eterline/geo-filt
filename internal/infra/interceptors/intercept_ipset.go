@@ -18,7 +18,7 @@ type InterceptorIPSet struct {
 	invert bool
 }
 
-func NewInterceptorIPSet(intType, intTag string, cfg model.InterceptorConfig) (model.Interceptor, error) {
+func NewInterceptorIPSet(intType, intTag string, cfg model.InterceptorConfig, _ model.InterceptLogger) (model.Interceptor, error) {
 	poolBuilder := &netipuse.PoolIPBuilder{}
 
 	if cidrs, err := getCfgStringSlice(cfg, "cidrs"); err == nil {
@@ -49,7 +49,7 @@ func NewInterceptorIPSet(intType, intTag string, cfg model.InterceptorConfig) (m
 	invert, _ := getCfgBool(cfg, "invert")
 
 	in := &InterceptorIPSet{
-		baseInterceptor: newBaseInterceptor(intType, intTag, true),
+		baseInterceptor: newBaseInterceptor(intType, intTag, true, nil),
 		pool:            pool,
 		invert:          invert,
 	}

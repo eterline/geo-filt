@@ -21,7 +21,7 @@ type ExtractorIP interface {
 }
 
 type BuilderRegistry interface {
-	BuildInterceptor(cfg InterceptorConfig) (Interceptor, error)
+	BuildInterceptor(cfg InterceptorConfig, logInit InterceptLoggerIniter) (Interceptor, error)
 }
 
 type ResponseForbiddenWriter interface {

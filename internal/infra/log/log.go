@@ -8,6 +8,8 @@ import (
 	"context"
 	"log/slog"
 	"os"
+
+	"github.com/eterline/geo-filt/internal/model"
 )
 
 // InitLogger – create singletone style structure logger
@@ -75,4 +77,32 @@ func selectLogLevel(level string) slog.Level {
 	default:
 		return slog.LevelInfo
 	}
+}
+
+type InterLogger struct {
+	log *slog.Logger
+}
+
+func (il InterLogger) Debug(msg string, args ...any) {
+	il.log.Debug(msg, args...)
+}
+
+func (il InterLogger) Error(msg string, args ...any) {
+	il.log.Error(msg, args...)
+}
+
+func (il InterLogger) Info(msg string, args ...any) {
+	il.log.Info(msg, args...)
+}
+
+func (il InterLogger) Warn(msg string, args ...any) {
+	il.log.Warn(msg, args...)
+}
+
+func (il InterLogger) With(args ...any) model.InterceptLogger {
+	return InterLogger{log: il.log.With(args...)}
+}
+
+func NewInterceptLogger(l *slog.Logger) model.InterceptLoggerIniter {
+	return InterLogger{log: l}
 }

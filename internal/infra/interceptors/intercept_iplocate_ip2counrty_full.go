@@ -43,12 +43,12 @@ type InterceptorIPLocateIP2CountryFull struct {
 	invert  bool
 }
 
-func NewInterceptorIPLocateIP2CountryFull(intType, intTag string, cfg model.InterceptorConfig) (model.Interceptor, error) {
+func NewInterceptorIPLocateIP2CountryFull(intType, intTag string, cfg model.InterceptorConfig, _ model.InterceptLogger) (model.Interceptor, error) {
 
 	invert, _ := getCfgBool(cfg, "invert")
 
 	in := &InterceptorIPLocateIP2CountryFull{
-		baseInterceptor: newBaseInterceptor(intType, intTag, true),
+		baseInterceptor: newBaseInterceptor(intType, intTag, true, nil),
 		allowed:         make(allowedCodes),
 		invert:          invert,
 	}
