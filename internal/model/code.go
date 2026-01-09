@@ -5,18 +5,18 @@ import (
 	"strings"
 )
 
-type CountryCode string
+type CountryCode [2]byte
 
 func NewCountryCode(s string) (CountryCode, error) {
 	s = strings.ToUpper(s)
 	if len(s) != 2 {
-		return "", fmt.Errorf("invalid country code: %q", s)
+		return [2]byte{}, fmt.Errorf("invalid country code: %q", s)
 	}
-	return CountryCode(s), nil
+	return [2]byte{s[0], s[1]}, nil
 }
 
 func (c CountryCode) String() string {
-	return string(c)
+	return string(c[:])
 }
 
 type CodeASN int32

@@ -13,7 +13,7 @@ import (
 // Tests for intercept_local_addr.go
 
 func TestInterceptorLocalAddr_Private(t *testing.T) {
-	it, err := interceptors.NewInterceptorLocalAddr("local", "test", nil)
+	it, err := interceptors.NewInterceptorLocalAddr("local", "test", nil, nil)
 	if err != nil {
 		t.Fatalf("NewInterceptorLocalAddr error: %v", err)
 	}
@@ -37,7 +37,7 @@ func TestInterceptorLocalAddr_Private(t *testing.T) {
 }
 
 func TestInterceptorLocalAddr_Public(t *testing.T) {
-	it, err := interceptors.NewInterceptorLocalAddr("local", "test", nil)
+	it, err := interceptors.NewInterceptorLocalAddr("local", "test", nil, nil)
 	if err != nil {
 		t.Fatalf("NewInterceptorLocalAddr error: %v", err)
 	}
@@ -74,7 +74,7 @@ func TestInterceptorIPSet_RandomAddrs(t *testing.T) {
 		cfg["addrs"].([]any)[i+len(addrs4)] = a
 	}
 
-	it, err := interceptors.NewInterceptorIPSet("ipset", "random-addrs", cfg)
+	it, err := interceptors.NewInterceptorIPSet("ipset", "random-addrs", cfg, nil)
 	if err != nil {
 		t.Fatalf("failed to create interceptor: %v", err)
 	}
@@ -111,7 +111,7 @@ func TestInterceptorIPSet_RandomCIDRs(t *testing.T) {
 		cfg["cidrs"].([]any)[i+len(cidrs4)] = c
 	}
 
-	it, err := interceptors.NewInterceptorIPSet("ipset", "random-cidrs", cfg)
+	it, err := interceptors.NewInterceptorIPSet("ipset", "random-cidrs", cfg, nil)
 	if err != nil {
 		t.Fatalf("failed to create interceptor: %v", err)
 	}
@@ -153,7 +153,7 @@ func TestInterceptorIPSet_RandomMixed(t *testing.T) {
 		cfg["cidrs"].([]any)[i+len(cidrs4)] = c
 	}
 
-	it, err := interceptors.NewInterceptorIPSet("ipset", "random-mixed", cfg)
+	it, err := interceptors.NewInterceptorIPSet("ipset", "random-mixed", cfg, nil)
 	if err != nil {
 		t.Fatalf("failed to create interceptor: %v", err)
 	}
@@ -193,7 +193,7 @@ func TestInterceptorIPLocateIP2Country_Basic(t *testing.T) {
 		"ip_type": "all",
 	}
 
-	it, err := interceptors.NewInterceptorIPLocateIP2Country("ip2country", "test", cfg)
+	it, err := interceptors.NewInterceptorIPLocateIP2Country("ip2country", "test", cfg, nil)
 	if err != nil {
 		t.Fatalf("failed to create interceptor: %v", err)
 	}
@@ -225,7 +225,7 @@ func BenchmarkInterceptorIPLocateIP2Country_Random(b *testing.B) {
 		"ip_type": "all",
 	}
 
-	it, err := interceptors.NewInterceptorIPLocateIP2Country("ip2country", "random", cfg)
+	it, err := interceptors.NewInterceptorIPLocateIP2Country("ip2country", "random", cfg, nil)
 	if err != nil {
 		b.Fatalf("failed to create interceptor: %v", err)
 	}
@@ -252,7 +252,7 @@ func BenchmarkInterceptorEterlineIP2Country_Random(b *testing.B) {
 		"ip_type": "all",
 	}
 
-	it, err := interceptors.NewInterceptorEterlineIP2Country("eterline_ip2counrty", "random", cfg)
+	it, err := interceptors.NewInterceptorEterlineIP2Country("eterline_ip2counrty", "random", cfg, nil)
 	if err != nil {
 		b.Fatalf("failed to create interceptor: %v", err)
 	}

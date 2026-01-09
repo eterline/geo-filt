@@ -2,4 +2,7 @@ module github.com/eterline/geo-filt
 
 go 1.25.5
 
-require github.com/eterline/ipcsv2base v0.1.1
+require (
+	github.com/eterline/ipcsv2base v0.1.1
+	golang.org/x/sync v0.19.0
+)

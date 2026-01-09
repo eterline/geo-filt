@@ -24,7 +24,11 @@ func (ac allowedCodes) Add(code string) error {
 }
 
 func (ac allowedCodes) Contains(code string) bool {
-	_, ok := ac[model.CountryCode(code)]
+	c, err := model.NewCountryCode(code)
+	if err != nil {
+		return false
+	}
+	_, ok := ac[c]
 	return ok
 }
 

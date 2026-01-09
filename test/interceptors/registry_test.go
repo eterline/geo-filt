@@ -33,8 +33,7 @@ func TestSetupRegistry_FromConfigs(t *testing.T) {
 	var interceptorList []model.Interceptor
 
 	for i, cfg := range cfgs {
-
-		interceptor, err := interceptors.SetupRegistry.BuildInterceptor(cfg)
+		interceptor, err := interceptors.SetupRegistry.BuildInterceptor(cfg, nil)
 		if err != nil {
 			t.Fatalf("cfg[%d] error: %s", i, err.Error())
 		}
@@ -74,7 +73,7 @@ func BenchmarkBuildInterceptor(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		for i, cfg := range cfgs {
-			_, err := interceptors.SetupRegistry.BuildInterceptor(cfg)
+			_, err := interceptors.SetupRegistry.BuildInterceptor(cfg, nil)
 			if err != nil {
 				b.Fatalf("cfg[%d] error: %v", i, err)
 			}
@@ -106,7 +105,7 @@ func BenchmarkBuildInterceptorEterline(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		for i, cfg := range cfgs {
-			_, err := interceptors.SetupRegistry.BuildInterceptor(cfg)
+			_, err := interceptors.SetupRegistry.BuildInterceptor(cfg, nil)
 			if err != nil {
 				b.Fatalf("cfg[%d] error: %v", i, err)
 			}

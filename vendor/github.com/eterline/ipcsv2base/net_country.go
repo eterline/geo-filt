@@ -1,7 +1,6 @@
 package ipcsv2base
 
 import (
-	"bufio"
 	"compress/flate"
 	"fmt"
 	"io"
@@ -84,17 +83,11 @@ func (w *NetworkCountryWriter) Size() int64 {
 // ===================
 
 type NetworkCountryReader struct {
-	f    *os.File
-	r    io.ReadCloser
-	bufR *bufio.Reader
-
-	block []byte
-	pos   int
-	limit int
-
+	f       *os.File
+	r       io.ReadCloser
+	buf     [26]byte
 	codes   map[string]struct{}
 	testVer func(netip.Addr) bool
-	tail    int
 }
 
 func OpenNetworkCountryBase(path string, ver NetworkVersion, codes ...string) (*NetworkCountryReader, error) {
@@ -119,7 +112,6 @@ func OpenNetworkCountryBase(path string, ver NetworkVersion, codes ...string) (*
 	}
 
 	r := flate.NewReader(f)
-	bufR := bufio.NewReaderSize(r, 1<<20)
 
 	var testVer func(netip.Addr) bool
 	switch ver {
@@ -131,59 +123,27 @@ func OpenNetworkCountryBase(path string, ver NetworkVersion, codes ...string) (*
 		testVer = func(a netip.Addr) bool { return true }
 	}
 
-	const blockSize = 26 * 8192
-	block := make([]byte, blockSize)
-
-	return &NetworkCountryReader{
-		block:   block,
-		f:       f,
-		r:       r,
-		bufR:    bufR,
-		codes:   codesMap,
-		testVer: testVer,
-	}, nil
+	return &NetworkCountryReader{f: f, r: r, codes: codesMap, testVer: testVer}, nil
 }
 
 func (r *NetworkCountryReader) Next() (NetworkCountry, error) {
+
 	for {
-		// если данных недостаточно — читаем ещё
-		if r.pos+countryRecSize > r.limit {
-			// сдвигаем хвост в начало
-			if r.pos < r.limit {
-				copy(r.block[0:], r.block[r.pos:r.limit])
-				r.tail = r.limit - r.pos
-			} else {
-				r.tail = 0
-			}
-
-			n, err := r.bufR.Read(r.block[r.tail:])
-			if err != nil {
-				return NetworkCountry{}, err
-			}
-
-			r.limit = r.tail + n
-			r.pos = 0
+		_, err := io.ReadFull(r.r, r.buf[:])
+		if err != nil {
+			return NetworkCountry{}, err
 		}
 
-		// всё ещё не хватает данных → EOF
-		if r.pos+countryRecSize > r.limit {
-			return NetworkCountry{}, io.EOF
-		}
+		code := string(r.buf[24:26])
 
-		rec := r.block[r.pos : r.pos+countryRecSize]
-		r.pos += countryRecSize
-
-		// --- код страны
-		code := string(rec[24:26])
 		if r.codes != nil {
 			if _, ok := r.codes[code]; !ok {
 				continue
 			}
 		}
 
-		// --- prefix
 		var tmp [24]byte
-		copy(tmp[:], rec[:24])
+		copy(tmp[:], r.buf[:24])
 
 		pfx, err := Vec24ToPrefix(tmp)
 		if err != nil {
