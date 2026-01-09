@@ -6,6 +6,10 @@ import (
 	"github.com/eterline/geo-filt/internal/model"
 )
 
+func init() {
+	SetupRegistry.RegisterInterceptor("ipwhois", NewInterceptorIPWhoIS)
+}
+
 type InterceptorIPWhoIS struct {
 	*baseInterceptor
 	invert bool
@@ -21,6 +25,7 @@ func NewInterceptorIPWhoIS(intType, intTag string, cfg model.InterceptorConfig, 
 	return in, nil
 }
 
+// TODO: Later will be remote IP test with idempotency implementation
 func (ila *InterceptorIPWhoIS) Match(ip netip.Addr) bool {
 	_ = ila.Log()
 	return false

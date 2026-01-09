@@ -2,6 +2,7 @@ package interceptors
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/eterline/geo-filt/internal/model"
@@ -49,12 +50,18 @@ func getCfgBool(cfg model.InterceptorConfig, key string) (bool, error) {
 		return false, fmt.Errorf("missing field %q", key)
 	}
 
-	b, ok := v.(bool)
-	if !ok {
+	switch b := v.(type) {
+	case string:
+		v, err := strconv.ParseBool(b)
+		if err != nil {
+			return false, fmt.Errorf("field %q not bool string", key)
+		}
+		return v, nil
+	case bool:
+		return b, nil
+	default:
 		return false, fmt.Errorf("field %q must be bool", key)
 	}
-
-	return b, nil
 }
 
 func getCfgInt64(cfg model.InterceptorConfig, key string) (int64, error) {
