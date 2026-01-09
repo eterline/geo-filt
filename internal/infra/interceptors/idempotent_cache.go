@@ -18,6 +18,10 @@ type cacheEntry struct {
 	exp   time.Time
 }
 
+func (e cacheEntry) Expired(now time.Time) bool {
+	return now.After(e.exp)
+}
+
 func (e cacheEntry) Allowed() bool {
 	return e.allow
 }
@@ -98,7 +102,7 @@ func (c *idempotentAllowTicketCache) cleanupLoop(interval time.Duration) {
 
 		c.mu.Lock()
 		for ip, item := range c.cache {
-			if now.After(item.exp) {
+			if item.Expired(now) {
 				delete(c.cache, ip)
 			}
 		}
