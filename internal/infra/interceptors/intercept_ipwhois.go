@@ -10,6 +10,12 @@ import (
 	"github.com/eterline/geo-filt/pkg/ipwho"
 )
 
+const (
+	cleanupIntervalCache = 10 * time.Minute
+	ttlCacheDefault      = 30 * time.Minute
+	throttleReqDefault   = 250 * time.Millisecond
+)
+
 func init() {
 	SetupRegistry.RegisterInterceptorConstructor("ipwhois", NewInterceptorIPWhoIS)
 }
@@ -37,20 +43,26 @@ func NewInterceptorIPWhoIS(intType, intTag string, cfg model.InterceptorConfig, 
 	ipwho.SetRequestIsTLS(tls)
 	log.Info("setup ipwho.is request transport", "tls", tls)
 
-	const (
-		cleanupIntervalCache = 10 * time.Minute
-		throttleRequestDelay = 5 * time.Second
-	)
-
 	ttlCache, err := getCfgDuration(cfg, "cache_ttl")
 	if err != nil {
-		log.Warn("invalid config cache TTL. will be changed to 30m")
-		ttlCache = 30 * time.Minute
+		ttlCache = ttlCacheDefault
+		log.Warn(
+			"failed config cache TTL -> will be default",
+			"delay", ttlCache.String(),
+		)
+	}
+
+	throttleReq, err := getCfgDuration(cfg, "throttle")
+	if err != nil {
+		throttleReq = throttleReqDefault
+		log.Warn(
+			"failed config throttle of requests -> will be default",
+			"delay", throttleReq.String(),
+		)
 	}
 
 	throttledFetchAddr := WrapThrottleFetchAddr(
-		throttleRequestDelay,
-		func(ctx context.Context, key netip.Addr) (bool, error) {
+		throttleReq, func(ctx context.Context, key netip.Addr) (bool, error) {
 			res, err := ipwho.FetchIPWithContext(ctx, key)
 			if err != nil {
 				log.Error("ipwho.is request failed",
