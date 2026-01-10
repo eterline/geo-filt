@@ -9,6 +9,12 @@ import (
 	"github.com/eterline/geo-filt/internal/model"
 )
 
+const (
+	cleanupIntervalCache = 10 * time.Minute
+	ttlCacheDefault      = 30 * time.Minute
+	throttleReqDefault   = 250 * time.Millisecond
+)
+
 func getCfgString(cfg model.InterceptorConfig, key string) (string, error) {
 	v, err := getField(cfg, key)
 	if err != nil {
