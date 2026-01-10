@@ -65,6 +65,7 @@ func NewInterceptorIPWhoIS(intType, intTag string, cfg model.InterceptorConfig, 
 func (ila *InterceptorIPWhoIS) Match(ip netip.Addr) bool {
 	ticket, err := ila.cache.GetAllowTicket(context.Background(), ip)
 	if err != nil {
+		ila.Log().Error("matching error", "request_addr", ip.String(), "error", err)
 		return false
 	}
 	return ticket
