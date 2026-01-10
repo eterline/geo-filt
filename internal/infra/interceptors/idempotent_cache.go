@@ -104,7 +104,6 @@ func (c *idempotentAllowTicketCache) cleanupLoop(interval time.Duration) {
 		c.mu.Lock()
 		for ip, item := range c.cache {
 			if item.Expired(now) {
-				c.sf.Forget(ip.String())
 				delete(c.cache, ip)
 			}
 		}
