@@ -31,7 +31,7 @@ func (e cacheEntry) Allowed() bool {
 type idempotentAllowTicketCache struct {
 	cache map[netip.Addr]cacheEntry
 	mu    sync.RWMutex
-	sf    singleflight.Group
+	sf    *singleflight.Group
 	job   idempotentJob
 	ttl   time.Duration
 }
@@ -39,6 +39,7 @@ type idempotentAllowTicketCache struct {
 func NewIPIdempotentAllowTicketCache(job idempotentJob, ttl time.Duration, cleanupInterval time.Duration) *idempotentAllowTicketCache {
 	cache := &idempotentAllowTicketCache{
 		cache: make(map[netip.Addr]cacheEntry),
+		sf:    &singleflight.Group{},
 		job:   job,
 		ttl:   ttl,
 	}
@@ -103,6 +104,7 @@ func (c *idempotentAllowTicketCache) cleanupLoop(interval time.Duration) {
 		c.mu.Lock()
 		for ip, item := range c.cache {
 			if item.Expired(now) {
+				c.sf.Forget(ip.String())
 				delete(c.cache, ip)
 			}
 		}
