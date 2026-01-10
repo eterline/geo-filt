@@ -31,7 +31,9 @@ func NewLogger(level string, json bool) *slog.Logger {
 		h = slog.NewTextHandler(os.Stdout, opt)
 	}
 
-	return slog.New(h)
+	l := slog.New(h)
+	l.Info("logger initialized", "level", selectLogLevel(level))
+	return l
 }
 
 // Uses only for context
