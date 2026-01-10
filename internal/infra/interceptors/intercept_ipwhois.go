@@ -33,12 +33,16 @@ func NewInterceptorIPWhoIS(intType, intTag string, cfg model.InterceptorConfig, 
 		}
 	}
 
+	tls, _ := getCfgBool(cfg, "tls")
+	ipwho.SetRequestIsTLS(tls)
+	log.Info("setup ipwho.is request transport", "tls", tls)
+
 	cache := NewIPIdempotentAllowTicketCache(
 		func(ctx context.Context, key netip.Addr) (bool, error) {
-			log.Debug("ipwho info request", "request_addr", key.String())
+			log.Info("ipwho.is info request", "request_addr", key.String())
 			res, err := ipwho.FetchIPWithContext(ctx, key)
 			if err != nil {
-				log.Error("ipwho request failed", "request_addr", key.String(), "error", err)
+				log.Error("ipwho.is request failed", "request_addr", key.String(), "error", err)
 				return false, err
 			}
 			return codeMap.Contains(res.Country()), nil
@@ -61,7 +65,6 @@ func NewInterceptorIPWhoIS(intType, intTag string, cfg model.InterceptorConfig, 
 func (ila *InterceptorIPWhoIS) Match(ip netip.Addr) bool {
 	ticket, err := ila.cache.GetAllowTicket(context.Background(), ip)
 	if err != nil {
-		ila.Log().Error("getting allow ticket error", "request_addr", ip.String(), "error", err)
 		return false
 	}
 	return ticket
