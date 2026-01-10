@@ -23,7 +23,7 @@ import (
 type Config struct {
 	Enabled      bool                      `json:"enabled,omitempty" yaml:"enabled,omitempty"`
 	HeaderIP     bool                      `json:"header_ip,omitempty" yaml:"header_ip,omitempty"`
-	LogLevel     string                    `json:"log_level,omitempty" yaml:"log_level,omitempty"`
+	LogLevel     string                    `json:"log,omitempty" yaml:"log,omitempty"`
 	Response     model.ForbiddenConfig     `json:"response,omitempty" yaml:"response,omitempty"`
 	Interceptors []model.InterceptorConfig `json:"interceptors" yaml:"interceptors"`
 }
@@ -33,7 +33,7 @@ func CreateConfig() *Config {
 	return &Config{
 		Enabled:      false,
 		HeaderIP:     false,
-		LogLevel:     "",
+		LogLevel:     "info",
 		Response:     model.ForbiddenConfig{},
 		Interceptors: make([]model.InterceptorConfig, 0),
 	}
