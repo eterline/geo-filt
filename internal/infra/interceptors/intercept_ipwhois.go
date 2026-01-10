@@ -38,10 +38,15 @@ func NewInterceptorIPWhoIS(intType, intTag string, cfg model.InterceptorConfig, 
 	log.Info("setup ipwho.is request transport", "tls", tls)
 
 	const (
-		ttlCache             = 30 * time.Minute
 		cleanupIntervalCache = 10 * time.Minute
 		throttleRequestDelay = 5 * time.Second
 	)
+
+	ttlCache, err := getCfgDuration(cfg, "cache_ttl")
+	if err != nil {
+		log.Warn("invalid config cache TTL. will be changed to 30m")
+		ttlCache = 30 * time.Minute
+	}
 
 	throttledFetchAddr := WrapThrottleFetchAddr(
 		throttleRequestDelay,
