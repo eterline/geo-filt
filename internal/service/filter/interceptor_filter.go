@@ -6,6 +6,7 @@ package filter
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/netip"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/eterline/geo-filt/internal/infra/log"
 	"github.com/eterline/geo-filt/internal/model"
+	"github.com/eterline/geo-filt/pkg/tools"
 )
 
 type InterceptorFilter struct {
@@ -22,6 +24,8 @@ type InterceptorFilter struct {
 
 func NewInterceptorFilter(logger *slog.Logger, reg model.BuilderRegistry, cfgs []model.InterceptorConfig) (*InterceptorFilter, error) {
 	interceptors := make([]model.Interceptor, 0, len(cfgs))
+	tags := tools.NewUniqueString()
+	defer tags.Clear()
 
 	for i, cfg := range cfgs {
 		startInit := time.Now()
@@ -37,6 +41,11 @@ func NewInterceptorFilter(logger *slog.Logger, reg model.BuilderRegistry, cfgs [
 		}
 
 		initLog := logger
+
+		if !tags.Append(interceptor.Tag()) {
+			return nil, errors.New("interceptor tags must unique")
+		}
+
 		if tag := interceptor.Tag(); tag != "" {
 			initLog = initLog.With("tag", tag)
 		}
@@ -55,6 +64,7 @@ func NewInterceptorFilter(logger *slog.Logger, reg model.BuilderRegistry, cfgs [
 	logger.Info(
 		"interceptors register finish",
 		"count", len(interceptors),
+		"tags", tags.Slice(),
 	)
 
 	return &InterceptorFilter{interceptors: interceptors, log: logger}, nil
