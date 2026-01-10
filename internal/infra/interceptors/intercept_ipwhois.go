@@ -11,7 +11,7 @@ import (
 )
 
 func init() {
-	SetupRegistry.RegisterInterceptor("ipwhois", NewInterceptorIPWhoIS)
+	SetupRegistry.RegisterInterceptorConstructor("ipwhois", NewInterceptorIPWhoIS)
 }
 
 type InterceptorIPWhoIS struct {
@@ -37,19 +37,36 @@ func NewInterceptorIPWhoIS(intType, intTag string, cfg model.InterceptorConfig, 
 	ipwho.SetRequestIsTLS(tls)
 	log.Info("setup ipwho.is request transport", "tls", tls)
 
-	cache := NewIPIdempotentAllowTicketCache(
+	const (
+		ttlCache             = 30 * time.Minute
+		cleanupIntervalCache = 10 * time.Minute
+		throttleRequestDelay = 5 * time.Second
+	)
+
+	throttledFetchAddr := WrapThrottleFetchAddr(
+		throttleRequestDelay,
 		func(ctx context.Context, key netip.Addr) (bool, error) {
 			res, err := ipwho.FetchIPWithContext(ctx, key)
 			if err != nil {
-				log.Error("ipwho.is request failed", "request_addr", key.String(), "error", err)
+				log.Error("ipwho.is request failed",
+					"request_addr", key.String(),
+					"error", err,
+				)
 				return false, err
 			}
+
 			ticket := codeMap.Contains(res.Country())
-			log.Info("ipwho.is info request", "request_addr", key.String(), "is_allowed", ticket)
+			log.Info("ipwho.is info request",
+				"request_addr", key.String(),
+				"is_allowed", ticket,
+			)
 			return ticket, nil
 		},
-		30*time.Minute, // TODO
-		10*time.Minute, // TODO
+	)
+
+	cache := NewIPIdempotentAllowTicketCache(
+		throttledFetchAddr, ttlCache,
+		cleanupIntervalCache,
 	)
 
 	invert, _ := getCfgBool(cfg, "invert")

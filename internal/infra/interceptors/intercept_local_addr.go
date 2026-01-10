@@ -7,7 +7,7 @@ import (
 )
 
 func init() {
-	SetupRegistry.RegisterInterceptor("local", NewInterceptorLocalAddr)
+	SetupRegistry.RegisterInterceptorConstructor("local", NewInterceptorLocalAddr)
 }
 
 type InterceptorLocalAddr struct {

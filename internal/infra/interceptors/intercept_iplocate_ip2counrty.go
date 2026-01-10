@@ -12,7 +12,7 @@ import (
 )
 
 func init() {
-	SetupRegistry.RegisterInterceptor("ip2counrty", NewInterceptorIPLocateIP2Country)
+	SetupRegistry.RegisterInterceptorConstructor("ip2counrty", NewInterceptorIPLocateIP2Country)
 }
 
 type InterceptorIPLocateIP2Country struct {

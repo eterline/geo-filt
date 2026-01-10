@@ -9,7 +9,7 @@ import (
 )
 
 func init() {
-	SetupRegistry.RegisterInterceptor("ipset", NewInterceptorIPSet)
+	SetupRegistry.RegisterInterceptorConstructor("ipset", NewInterceptorIPSet)
 }
 
 type InterceptorIPSet struct {

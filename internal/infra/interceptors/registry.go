@@ -19,7 +19,7 @@ func NewInterceptorRegistry() *InterceptorRegistry {
 	}
 }
 
-func (ir *InterceptorRegistry) RegisterInterceptor(name string, fac InterceptorFactory) {
+func (ir *InterceptorRegistry) RegisterInterceptorConstructor(name string, fac InterceptorFactory) {
 	if _, ok := ir.reg[name]; ok {
 		panic(fmt.Sprintf("interceptor: '%s' already registered", name))
 	}

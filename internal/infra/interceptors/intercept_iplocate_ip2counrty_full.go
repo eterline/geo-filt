@@ -10,7 +10,7 @@ import (
 )
 
 func init() {
-	SetupRegistry.RegisterInterceptor("ip2counrty_full", NewInterceptorIPLocateIP2CountryFull)
+	SetupRegistry.RegisterInterceptorConstructor("ip2counrty_full", NewInterceptorIPLocateIP2CountryFull)
 }
 
 type allowedCodes map[model.CountryCode]struct{}
