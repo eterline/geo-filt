@@ -39,13 +39,14 @@ func NewInterceptorIPWhoIS(intType, intTag string, cfg model.InterceptorConfig, 
 
 	cache := NewIPIdempotentAllowTicketCache(
 		func(ctx context.Context, key netip.Addr) (bool, error) {
-			log.Info("ipwho.is info request", "request_addr", key.String())
 			res, err := ipwho.FetchIPWithContext(ctx, key)
 			if err != nil {
 				log.Error("ipwho.is request failed", "request_addr", key.String(), "error", err)
 				return false, err
 			}
-			return codeMap.Contains(res.Country()), nil
+			ticket := codeMap.Contains(res.Country())
+			log.Info("ipwho.is info request", "request_addr", key.String(), "is_allowed", ticket)
+			return ticket, nil
 		},
 		30*time.Minute, // TODO
 		10*time.Minute, // TODO
