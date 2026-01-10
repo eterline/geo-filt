@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"net/netip"
 	"strings"
-	"sync/atomic"
+	"sync"
 	"time"
 )
 
@@ -68,8 +68,10 @@ const (
 )
 
 var (
-	requestIsTLS = atomic.Pointer[bool]{}
-	ipwhoClient  = &http.Client{
+	requestIsTLS   bool
+	requestIsTLSMu sync.RWMutex
+
+	ipwhoClient = &http.Client{
 		Timeout: 5 * time.Second,
 		Transport: &http.Transport{
 			MaxIdleConns:        100,
@@ -80,12 +82,20 @@ var (
 )
 
 func init() {
-	reqTLS := true
-	requestIsTLS.Store(&reqTLS)
+	requestIsTLS = true
 }
 
 func SetRequestIsTLS(v bool) {
-	requestIsTLS.Store(&v)
+	requestIsTLSMu.Lock()
+	requestIsTLS = v
+	requestIsTLSMu.Unlock()
+}
+
+func IsRequestTLS() bool {
+	requestIsTLSMu.RLock()
+	v := requestIsTLS
+	requestIsTLSMu.RUnlock()
+	return v
 }
 
 func FetchIPWithContext(ctx context.Context, ip netip.Addr) (*IPWhoResponse, error) {
@@ -99,7 +109,7 @@ func FetchIPWithContext(ctx context.Context, ip netip.Addr) (*IPWhoResponse, err
 	)
 
 	b.Grow(len(ipwhoURLPrefix) + len(ipStr))
-	if okPtr := requestIsTLS.Load(); okPtr != nil && *okPtr {
+	if IsRequestTLS() {
 		b.WriteString(ipwhoURLPrefixTLS)
 	} else {
 		b.WriteString(ipwhoURLPrefix)

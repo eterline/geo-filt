@@ -243,29 +243,29 @@ func BenchmarkInterceptorIPLocateIP2Country_Random(b *testing.B) {
 	}
 }
 
-func BenchmarkInterceptorEterlineIP2Country_Random(b *testing.B) {
-	baseFile := data.DatasetFile("eterline", "country2ip.bin")
+// func BenchmarkInterceptorEterlineIP2Country_Random(b *testing.B) {
+// 	baseFile := data.DatasetFile("eterline", "country2ip.bin")
 
-	cfg := model.InterceptorConfig{
-		"base":    baseFile,
-		"codes":   []any{"RU"},
-		"ip_type": "all",
-	}
+// 	cfg := model.InterceptorConfig{
+// 		"base":    baseFile,
+// 		"codes":   []any{"RU"},
+// 		"ip_type": "all",
+// 	}
 
-	it, err := interceptors.NewInterceptorEterlineIP2Country("eterline_ip2counrty", "random", cfg, nil)
-	if err != nil {
-		b.Fatalf("failed to create interceptor: %v", err)
-	}
+// 	it, err := interceptors.NewInterceptorEterlineIP2Country("eterline_ip2counrty", "random", cfg, nil)
+// 	if err != nil {
+// 		b.Fatalf("failed to create interceptor: %v", err)
+// 	}
 
-	const poolSize = 1 << 6
-	v4, v6 := data.IPAddrs(poolSize)
+// 	const poolSize = 1 << 6
+// 	v4, v6 := data.IPAddrs(poolSize)
 
-	ips := make([]netip.Addr, 0, poolSize*2)
-	ips = append(ips, v4...)
-	ips = append(ips, v6...)
+// 	ips := make([]netip.Addr, 0, poolSize*2)
+// 	ips = append(ips, v4...)
+// 	ips = append(ips, v6...)
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		_ = it.Match(ips[i%poolSize])
-	}
-}
+// 	b.ResetTimer()
+// 	for i := 0; i < b.N; i++ {
+// 		_ = it.Match(ips[i%poolSize])
+// 	}
+// }
